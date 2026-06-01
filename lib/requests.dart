@@ -193,17 +193,12 @@ class NSCGRequests {
         // Sync to home screen widgets
         await WidgetService.instance.syncExamTimetableToWidget();
         return examTimetable;
-      } else if (response.statusCode == 401 || response.statusCode == 403) {
-        // Only mark as logged out if we get explicit auth failure
+      } else {
         settings.setBool('loggedin', false);
         loggedinController.add(false);
         return null;
-      } else {
-        // For other errors, return null but don't delete existing data
-        return null;
       }
     } catch (e) {
-      // On exception, return null but preserve existing data
       return null;
     }
   }

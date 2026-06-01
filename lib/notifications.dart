@@ -65,7 +65,7 @@ class NotificationService {
     tz.initializeTimeZones();
 
     await flutterLocalNotificationsPlugin.initialize(
-      initializationSettings,
+      settings: initializationSettings,
       onDidReceiveNotificationResponse: onDidReceiveNotificationResponse,
     );
   }
@@ -108,11 +108,11 @@ class NotificationService {
         type == NotificationType.lessonStart ||
         type == NotificationType.examStart;
     await flutterLocalNotificationsPlugin.zonedSchedule(
-      id,
-      title,
-      body,
-      tz.TZDateTime.from(scheduledTime, tz.local),
-      NotificationDetails(
+      id: id,
+      title: title,
+      body: body,
+      scheduledDate: tz.TZDateTime.from(scheduledTime, tz.local),
+      notificationDetails: NotificationDetails(
         android: isStartType
             ? const AndroidNotificationDetails(
                 'lesson_start_channel',

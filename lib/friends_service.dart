@@ -58,7 +58,7 @@ class FriendsService {
       'version': 1, // For future compatibility
       'id': shareId,
       'name': userName,
-      if (userId != null) 'userId': userId,
+      'userId': ?userId,
       'privacyLevel': privacyLevel.index,
       'timetable': friendTimetable.toJson(),
       'timestamp': DateTime.now().toIso8601String(),

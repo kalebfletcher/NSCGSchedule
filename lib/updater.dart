@@ -585,10 +585,10 @@ class NSCGScheduleLatest {
 
       // payload 'updater' will be handled in main.dart to navigate user
       await flutterLocalNotificationsPlugin.show(
-        0,
-        'New update available!',
-        'Tap to open updates and install the latest version.',
-        notificationDetails,
+        id: 0,
+        title: 'New update available!',
+        body: 'Tap to open updates and install the latest version.',
+        notificationDetails: notificationDetails,
         payload: 'updater',
       );
     } catch (e) {

@@ -38,14 +38,15 @@ class _LoginState extends State<Login> {
             useShouldOverrideUrlLoading: false,
           ),
           onReceivedServerTrustAuthRequest: (controller, challenge) async {
-            // Allow SSL certificate for my.nulc.ac.uk
-            if (challenge.protectionSpace.host == 'my.nulc.ac.uk') {
-              return ServerTrustAuthResponse(
-                action: ServerTrustAuthResponseAction.PROCEED,
-              );
-            }
+            final host = challenge.protectionSpace.host;
+            debugPrint('SSL trust challenge host: $host');
+
+            final allowed = host == 'nulc.ac.uk' || host.endsWith('.nulc.ac.uk');
+
             return ServerTrustAuthResponse(
-              action: ServerTrustAuthResponseAction.CANCEL,
+              action: allowed
+                  ? ServerTrustAuthResponseAction.PROCEED
+                  : ServerTrustAuthResponseAction.CANCEL,
             );
           },
           onLoadStop: (controller, url) async {
