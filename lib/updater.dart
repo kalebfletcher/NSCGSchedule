@@ -367,7 +367,7 @@ class UpdaterScreenState extends State<UpdaterScreen> {
                                     child: OutlinedButton(
                                       onPressed: () async {
                                         final uri = Uri.parse(
-                                          'https://github.com/bw8686/nscgschedule/releases/latest',
+                                          'https://github.com/kalebfletcher/nscgschedule/releases/latest',
                                         );
                                         if (await canLaunchUrl(uri)) {
                                           await launchUrl(
@@ -481,7 +481,7 @@ class NSCGScheduleLatest {
   static Future<NSCGScheduleLatest> fetch() async {
     http.Response res = await http.get(
       Uri.parse(
-        'https://api.github.com/repos/bw8686/nscgschedule/releases/latest',
+        'https://api.github.com/repos/kalebfletcher/nscgschedule/releases/latest',
       ),
       headers: {'Accept': 'application/vnd.github.v3+json'},
     );

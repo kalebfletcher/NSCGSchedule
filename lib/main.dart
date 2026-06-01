@@ -102,10 +102,10 @@ Future<void> _initServices() async {
   // Initialize badges system (will load cached data; optionally provide remote URL)
   try {
     BadgesService.instance.remoteUrl =
-        'https://raw.githubusercontent.com/bw8686/NSCGSchedule/refs/heads/main/badges.json';
+        'https://raw.githubusercontent.com/kalebfletcher/NSCGSchedule/refs/heads/main/badges.json';
     BadgesService.instance.init(
       remoteJsonUrl:
-          'https://raw.githubusercontent.com/bw8686/NSCGSchedule/refs/heads/main/badges.json',
+          'https://raw.githubusercontent.com/kalebfletcher/NSCGSchedule/refs/heads/main/badges.json',
     );
   } catch (_) {}
 }
