@@ -138,7 +138,7 @@ final GoRouter routerController = GoRouter(
             GoRoute(
               path: 'privacy-policy',
               builder: (BuildContext context, GoRouterState state) {
-                return const PrivacyPolicyScreen(isReviewOnly: true);
+                return const PrivacyPolicyScreen();
               },
             ),
           ],

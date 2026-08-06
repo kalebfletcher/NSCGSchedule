@@ -40,6 +40,7 @@ class _SettingsPageState extends State<SettingsPage> {
   final TimetableSyncService _syncService = GetIt.I<TimetableSyncService>();
   String _syncServerUrl = TimetableSyncService.defaultServerUrl;
   bool _onlineSyncEnabled = false;
+  bool _privacyPolicyAccepted = false;
 
   @override
   void initState() {
@@ -87,6 +88,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _packageInfo = await PackageInfo.fromPlatform();
     _syncServerUrl = await _syncService.getServerUrl();
     _onlineSyncEnabled = await _syncService.isOnlineSyncEnabled();
+    _privacyPolicyAccepted = await _syncService.isPrivacyPolicyAccepted();
 
     if (mounted) {
       setState(() {
@@ -338,9 +340,11 @@ class _SettingsPageState extends State<SettingsPage> {
                       if (context.mounted) {
                         await context.push('/settings/privacy-policy');
                         final nowOnline = await _syncService.isOnlineSyncEnabled();
+                        final nowAccepted = await _syncService.isPrivacyPolicyAccepted();
                         if (mounted) {
                           setState(() {
                             _onlineSyncEnabled = nowOnline;
+                            _privacyPolicyAccepted = nowAccepted;
                           });
                         }
                       }
@@ -348,7 +352,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     } else {
                       await _syncService.setOnlineSyncEnabled(true);
                       if (mounted) {
-                        setState(() => _onlineSyncEnabled = true);
+                        setState(() {
+                          _onlineSyncEnabled = true;
+                          _privacyPolicyAccepted = true;
+                        });
                       }
                     }
                   } else {
@@ -370,188 +377,193 @@ class _SettingsPageState extends State<SettingsPage> {
                   await context.push('/settings/privacy-policy');
                   if (mounted) {
                     final online = await _syncService.isOnlineSyncEnabled();
+                    final accepted = await _syncService.isPrivacyPolicyAccepted();
                     setState(() {
                       _onlineSyncEnabled = online;
+                      _privacyPolicyAccepted = accepted;
                     });
                   }
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.sync),
-                title: const Text('Sync All Online Friends'),
-                subtitle: const Text('Fetch latest schedules from sync server'),
-                onTap: () async {
-                  await _syncService.syncAllFriends();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.devices_outlined),
-                title: const Text('Manage Connected Devices'),
-                subtitle: const Text(
-                  'View and manage friends with access to your schedule',
+              if (_onlineSyncEnabled && _privacyPolicyAccepted) ...[
+                ListTile(
+                  leading: const Icon(Icons.sync),
+                  title: const Text('Sync All Online Friends'),
+                  subtitle: const Text('Fetch latest schedules from sync server'),
+                  onTap: () async {
+                    await _syncService.syncAllFriends();
+                  },
                 ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  context.push('/friends/sync-access');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.key_outlined),
-                title: const Text('Regenerate Invite Keys'),
-                subtitle: const Text(
-                  'Invalidate old invite QR codes and links',
+                ListTile(
+                  leading: const Icon(Icons.devices_outlined),
+                  title: const Text('Manage Connected Devices'),
+                  subtitle: const Text(
+                    'View and manage friends with access to your schedule',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    context.push('/friends/sync-access');
+                  },
                 ),
-                onTap: () async {
-                  final isPublished = await _syncService.isTimetablePublished();
-                  if (!context.mounted) return;
-                  if (!isPublished) {
+                ListTile(
+                  leading: const Icon(Icons.key_outlined),
+                  title: const Text('Regenerate Invite Keys'),
+                  subtitle: const Text(
+                    'Invalidate old invite QR codes and links',
+                  ),
+                  onTap: () async {
+                    final isPublished = await _syncService.isTimetablePublished();
+                    if (!context.mounted) return;
+                    if (!isPublished) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'You have not shared a timetable yet. Share your timetable first to create invite keys.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Regenerate Invite Keys?'),
+                        content: const Text(
+                          'This will invalidate all previously shared invite QR codes and links.\n\n'
+                          'Existing connected friends will keep access, but anyone scanning an older QR code will not be able to connect.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancel'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Regenerate'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm != true || !context.mounted) return;
+
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text(
-                          'You have not shared a timetable yet. Share your timetable first to create invite keys.',
-                        ),
+                        content: Text('Regenerating invite keys...'),
+                        duration: Duration(seconds: 1),
                       ),
                     );
-                    return;
-                  }
 
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Regenerate Invite Keys?'),
-                      content: const Text(
-                        'This will invalidate all previously shared invite QR codes and links.\n\n'
-                        'Existing connected friends will keep access, but anyone scanning an older QR code will not be able to connect.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancel'),
+                    try {
+                      await _syncService.regenerateInviteKeys();
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Invite keys successfully regenerated. New QR codes will now be used for sharing.',
+                          ),
                         ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Regenerate'),
+                      );
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to regenerate invite keys: $e'),
                         ),
-                      ],
-                    ),
-                  );
-
-                  if (confirm != true || !context.mounted) return;
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Regenerating invite keys...'),
-                      duration: Duration(seconds: 1),
-                    ),
-                  );
-
-                  try {
-                    await _syncService.regenerateInviteKeys();
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Invite keys successfully regenerated. New QR codes will now be used for sharing.',
-                        ),
-                      ),
-                    );
-                  } catch (e) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to regenerate invite keys: $e'),
-                      ),
-                    );
-                  }
-                },
-              ),
-              ListTile(
-                leading: Icon(
-                  Icons.delete_forever_outlined,
-                  color: Theme.of(context).colorScheme.error,
+                      );
+                    }
+                  },
                 ),
-                title: Text(
-                  'Delete Timetable from Server',
-                  style: TextStyle(
+                ListTile(
+                  leading: Icon(
+                    Icons.delete_forever_outlined,
                     color: Theme.of(context).colorScheme.error,
                   ),
-                ),
-                subtitle: const Text(
-                  'Permanently remove your timetable and revoke all shared access',
-                ),
-                onTap: () async {
-                  final isPublished = await _syncService.isTimetablePublished();
-                  if (!context.mounted) return;
-                  if (!isPublished) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'You have not shared or published a timetable to the server yet.',
-                        ),
-                      ),
-                    );
-                    return;
-                  }
-
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Delete Timetable from Server?'),
-                      content: const Text(
-                        'This will permanently delete your published timetable from the sync server, revoke all shared access, remove any online timetables from other people, and opt you out of Online Sync.\n\n'
-                        'All connected friends will immediately lose access. This action cannot be undone.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancel'),
-                        ),
-                        FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor:
-                                Theme.of(context).colorScheme.error,
-                            foregroundColor:
-                                Theme.of(context).colorScheme.onError,
+                  title: Text(
+                    'Delete Timetable from Server',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'Permanently remove your timetable and revoke all shared access',
+                  ),
+                  onTap: () async {
+                    final isPublished = await _syncService.isTimetablePublished();
+                    if (!context.mounted) return;
+                    if (!isPublished) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'You have not shared or published a timetable to the server yet.',
                           ),
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Delete & Opt Out'),
                         ),
-                      ],
-                    ),
-                  );
+                      );
+                      return;
+                    }
 
-                  if (confirm != true || !context.mounted) return;
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Delete Timetable from Server?'),
+                        content: const Text(
+                          'This will permanently delete your published timetable from the sync server, revoke all shared access, remove any online timetables from other people, and opt you out of Online Sync.\n\n'
+                          'All connected friends will immediately lose access. This action cannot be undone.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancel'),
+                          ),
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.error,
+                              foregroundColor:
+                                  Theme.of(context).colorScheme.onError,
+                            ),
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Delete & Opt Out'),
+                          ),
+                        ],
+                      ),
+                    );
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Deleting timetable and opting out...'),
-                      duration: Duration(seconds: 1),
-                    ),
-                  );
+                    if (confirm != true || !context.mounted) return;
 
-                  try {
-                    await _syncService.deletePublishedTimetable();
-                    if (!context.mounted) return;
-                    setState(() {
-                      _onlineSyncEnabled = false;
-                    });
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text(
-                          'Timetable deleted from server and opted out of Online Sync.',
+                        content: Text('Deleting timetable and opting out...'),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+
+                    try {
+                      await _syncService.deletePublishedTimetable();
+                      if (!context.mounted) return;
+                      setState(() {
+                        _onlineSyncEnabled = false;
+                        _privacyPolicyAccepted = false;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Timetable deleted from server and opted out of Online Sync.',
+                          ),
                         ),
-                      ),
-                    );
-                  } catch (e) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to delete timetable: $e'),
-                      ),
-                    );
-                  }
-                },
-              ),
+                      );
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to delete timetable: $e'),
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ],
               const Divider(),
               ListTile(
                 leading: const Icon(Icons.update),

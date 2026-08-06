@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nscgschedule/privacy_policy_screen.dart';
 import 'package:nscgschedule/services/timetable_sync_service.dart';
 import 'package:nscgschedule/models/timetable_models.dart' as models;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -81,6 +83,7 @@ void main() {
       }
 
       syncService = TimetableSyncService();
+      await syncService.setServerUrl('http://127.0.0.1:3000');
     });
 
     tearDownAll(() async {
@@ -201,6 +204,17 @@ void main() {
       await syncService.saveCachedPrivacyPolicy(testMarkdown);
 
       expect(await syncService.getCachedPrivacyPolicy(), equals(testMarkdown));
+    });
+
+    test('Privacy acceptance state gating logic functions correctly', () async {
+      await syncService.setPrivacyPolicyAccepted(false);
+      expect(await syncService.isPrivacyPolicyAccepted(), isFalse);
+
+      await syncService.setPrivacyPolicyAccepted(true);
+      expect(await syncService.isPrivacyPolicyAccepted(), isTrue);
+
+      await syncService.setPrivacyPolicyAccepted(false);
+      expect(await syncService.isPrivacyPolicyAccepted(), isFalse);
     });
   });
 }

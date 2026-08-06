@@ -28,6 +28,7 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
   bool _isSyncing = false;
   bool _onboardingChecked = false;
   bool _showOnboarding = false;
+  bool _isOnlineSync = false;
 
   @override
   void initState() {
@@ -40,8 +41,19 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
     });
   }
 
+  Future<void> _loadSyncState() async {
+    final isOnline = await _syncService.isOnlineSyncEnabled();
+    final isAccepted = await _syncService.isPrivacyPolicyAccepted();
+    if (mounted) {
+      setState(() {
+        _isOnlineSync = isOnline && isAccepted;
+      });
+    }
+  }
+
   Future<void> _checkOnboarding() async {
     final completed = await _syncService.isFriendsOnboardingCompleted();
+    await _loadSyncState();
     if (!mounted) return;
     setState(() {
       _showOnboarding = !completed;
@@ -69,6 +81,7 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
   }
 
   void _loadFriends() {
+    _loadSyncState();
     setState(() {
       _friends = _friendsService.getAllFriends();
     });
@@ -174,24 +187,27 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
       appBar: AppBar(
         title: const Text('Friends'),
         actions: [
-          IconButton(
-            icon: _isSyncing
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.sync),
-            tooltip: 'Sync Online Friends',
-            onPressed: _isSyncing ? null : _syncAll,
-          ),
-          IconButton(
-            icon: const Icon(Icons.devices_outlined),
-            tooltip: 'Access Management',
-            onPressed: () {
-              context.push('/friends/sync-access');
-            },
-          ),
+          if (_isOnlineSync)
+            IconButton(
+              icon: _isSyncing
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.sync),
+              tooltip: 'Sync Online Friends',
+              onPressed: _isSyncing ? null : _syncAll,
+            ),
+          if (_isOnlineSync)
+            IconButton(
+              icon: const Icon(Icons.devices_outlined),
+              tooltip: 'Access Management',
+              onPressed: () async {
+                await context.push('/friends/sync-access');
+                _loadFriends();
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.qr_code),
             tooltip: 'QR Code Options',

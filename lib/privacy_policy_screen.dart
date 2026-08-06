@@ -29,6 +29,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
   String _markdownContent = '';
   bool _acknowledged = false;
   bool _isSubmitting = false;
+  bool _isPolicyAccepted = false;
 
   @override
   void initState() {
@@ -49,6 +50,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
         } else {
           _isLoading = true;
         }
+        _isPolicyAccepted = alreadyAccepted;
         _acknowledged = alreadyAccepted;
         _errorMessage = null;
         _isFetchingLatest = true;
@@ -58,8 +60,10 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
     try {
       final markdown = await _syncService.fetchPrivacyPolicy();
       if (mounted) {
+        final currentAccepted = await _syncService.isPrivacyPolicyAccepted();
         setState(() {
           _markdownContent = markdown;
+          _isPolicyAccepted = currentAccepted;
           _isLoading = false;
           _isFetchingLatest = false;
           _errorMessage = null;
@@ -219,7 +223,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                         ),
                       ),
                     ),
-                    if (!widget.isReviewOnly) ...[
+                    if (!_isPolicyAccepted) ...[
                       Container(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
                         decoration: BoxDecoration(
