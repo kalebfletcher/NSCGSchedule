@@ -121,8 +121,10 @@ class WatchService {
       Map<String, dynamic> examData = {};
       String? examUpdated;
 
-      // Always attempt to fetch if logged in, or if force refresh is requested
-      if (loggedin || forceRefresh) {
+      final isDebug = await settings.getBool('debugMode', defaultValue: false);
+
+      // Always attempt to fetch if logged in (and not debugMode), or if force refresh is requested
+      if ((loggedin && !isDebug) || forceRefresh) {
         try {
           final fetched = await NSCGRequests.instance.getExamTimetable(
             notifyWatch: false,

@@ -24,13 +24,21 @@ class FriendAdapter extends TypeAdapter<Friend> {
       addedAt: fields[4] as DateTime,
       profilePicPath: fields[5] as String?,
       userId: fields[6] as String?,
+      isOnlineSync: fields[7] == null ? false : fields[7] as bool,
+      syncFileId: fields[8] as String?,
+      syncAccessCode: fields[9] as String?,
+      syncDecryptionKey: fields[10] as String?,
+      syncServerUrl: fields[11] as String?,
+      lastSyncedAt: fields[12] as DateTime?,
+      isHidden: fields[13] == null ? false : fields[13] as bool,
+      grantedAccessCode: fields[14] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Friend obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -44,7 +52,23 @@ class FriendAdapter extends TypeAdapter<Friend> {
       ..writeByte(5)
       ..write(obj.profilePicPath)
       ..writeByte(6)
-      ..write(obj.userId);
+      ..write(obj.userId)
+      ..writeByte(7)
+      ..write(obj.isOnlineSync)
+      ..writeByte(8)
+      ..write(obj.syncFileId)
+      ..writeByte(9)
+      ..write(obj.syncAccessCode)
+      ..writeByte(10)
+      ..write(obj.syncDecryptionKey)
+      ..writeByte(11)
+      ..write(obj.syncServerUrl)
+      ..writeByte(12)
+      ..write(obj.lastSyncedAt)
+      ..writeByte(13)
+      ..write(obj.isHidden)
+      ..writeByte(14)
+      ..write(obj.grantedAccessCode);
   }
 
   @override

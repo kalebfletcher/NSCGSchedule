@@ -38,6 +38,22 @@ class Friend {
   final String? profilePicPath; // Optional local profile picture path (not shared)
   @HiveField(6)
   final String? userId; // Optional stable user identifier (e.g. C123456)
+  @HiveField(7)
+  final bool isOnlineSync;
+  @HiveField(8)
+  final String? syncFileId;
+  @HiveField(9)
+  final String? syncAccessCode;
+  @HiveField(10)
+  final String? syncDecryptionKey;
+  @HiveField(11)
+  final String? syncServerUrl;
+  @HiveField(12)
+  final DateTime? lastSyncedAt;
+  @HiveField(13)
+  final bool isHidden;
+  @HiveField(14)
+  final String? grantedAccessCode;
 
   Friend({
     required this.id,
@@ -47,6 +63,14 @@ class Friend {
     required this.addedAt,
     this.profilePicPath,
     this.userId,
+    this.isOnlineSync = false,
+    this.syncFileId,
+    this.syncAccessCode,
+    this.syncDecryptionKey,
+    this.syncServerUrl,
+    this.lastSyncedAt,
+    this.isHidden = false,
+    this.grantedAccessCode,
   });
 
   Friend copyWith({
@@ -57,6 +81,14 @@ class Friend {
     DateTime? addedAt,
     String? profilePicPath,
     String? userId,
+    bool? isOnlineSync,
+    String? syncFileId,
+    String? syncAccessCode,
+    String? syncDecryptionKey,
+    String? syncServerUrl,
+    DateTime? lastSyncedAt,
+    bool? isHidden,
+    String? grantedAccessCode,
   }) {
     return Friend(
       id: id ?? this.id,
@@ -66,6 +98,14 @@ class Friend {
       addedAt: addedAt ?? this.addedAt,
       profilePicPath: profilePicPath ?? this.profilePicPath,
       userId: userId ?? this.userId,
+      isOnlineSync: isOnlineSync ?? this.isOnlineSync,
+      syncFileId: syncFileId ?? this.syncFileId,
+      syncAccessCode: syncAccessCode ?? this.syncAccessCode,
+      syncDecryptionKey: syncDecryptionKey ?? this.syncDecryptionKey,
+      syncServerUrl: syncServerUrl ?? this.syncServerUrl,
+      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+      isHidden: isHidden ?? this.isHidden,
+      grantedAccessCode: grantedAccessCode ?? this.grantedAccessCode,
     );
   }
 }
@@ -95,11 +135,11 @@ class FriendTimetable {
         for (final lesson in day.lessons) {
           try {
             if (lesson.startTime.isEmpty || lesson.endTime.isEmpty) continue;
-            final sp = lesson.startTime.split(':');
-            final ep = lesson.endTime.split(':');
-            final s = int.parse(sp[0]) * 60 + int.parse(sp[1]);
-            final e = int.parse(ep[0]) * 60 + int.parse(ep[1]);
-            if (e > s) busy.add([s, e]);
+            final s = parseTimeToMinutes(lesson.startTime);
+            final e = parseTimeToMinutes(lesson.endTime);
+            if (s != null && e != null && e > s) {
+              busy.add([s, e]);
+            }
           } catch (_) {
             // ignore parse errors
           }
@@ -329,3 +369,30 @@ class MutualGap {
     required this.duration,
   });
 }
+
+/// Helper to parse standard 12-hour or 24-hour time strings to minutes since midnight
+int? parseTimeToMinutes(String timeString) {
+  try {
+    final clean = timeString.trim();
+    if (clean.isEmpty) return null;
+    final upper = clean.toUpperCase();
+    final isPM = upper.contains('PM');
+    final isAM = upper.contains('AM');
+
+    final digitsOnly = upper.replaceAll(RegExp(r'[^0-9:]'), '');
+    final parts = digitsOnly.split(':');
+    if (parts.length >= 2) {
+      var hour = int.parse(parts[0]);
+      final minute = int.parse(parts[1]);
+
+      if (isPM && hour < 12) {
+        hour += 12;
+      } else if (isAM && hour == 12) {
+        hour = 0;
+      }
+      return hour * 60 + minute;
+    }
+  } catch (_) {}
+  return null;
+}
+

@@ -4,10 +4,13 @@ import 'package:go_router/go_router.dart';
 import 'package:nscgschedule/friends_service.dart';
 import 'package:nscgschedule/models/friend_models.dart';
 import 'package:nscgschedule/debug_service.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:nscgschedule/edit_friend_bottom_sheet.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:io' show File;
 import 'dart:async';
 import 'package:nscgschedule/badges_service.dart';
+import 'package:nscgschedule/services/timetable_sync_service.dart';
+import 'package:nscgschedule/friends_onboarding.dart';
 
 class FriendsListScreen extends StatefulWidget {
   const FriendsListScreen({super.key});
@@ -18,17 +21,31 @@ class FriendsListScreen extends StatefulWidget {
 
 class _FriendsListScreenState extends State<FriendsListScreen> {
   final FriendsService _friendsService = GetIt.I<FriendsService>();
+  final TimetableSyncService _syncService = GetIt.I<TimetableSyncService>();
   final DebugService _debug = GetIt.I<DebugService>();
   List<Friend> _friends = [];
   Timer? _refreshTimer;
+  bool _isSyncing = false;
+  bool _onboardingChecked = false;
+  bool _showOnboarding = false;
 
   @override
   void initState() {
     super.initState();
+    _checkOnboarding();
     _loadFriends();
     _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() {});
+    });
+  }
+
+  Future<void> _checkOnboarding() async {
+    final completed = await _syncService.isFriendsOnboardingCompleted();
+    if (!mounted) return;
+    setState(() {
+      _showOnboarding = !completed;
+      _onboardingChecked = true;
     });
   }
 
@@ -38,75 +55,165 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
     super.dispose();
   }
 
+  Future<void> _openScanScreen() async {
+    try {
+      final status = await Permission.camera.status;
+      if (!status.isGranted) {
+        await Permission.camera.request();
+      }
+    } catch (_) {}
+    if (mounted) {
+      await context.push('/friends/scan');
+      _loadFriends();
+    }
+  }
+
   void _loadFriends() {
     setState(() {
       _friends = _friendsService.getAllFriends();
     });
   }
 
+  Future<void> _syncAll() async {
+    if (_isSyncing) return;
+    final isOnline = await _syncService.isOnlineSyncEnabled();
+    if (!isOnline) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Online sync is disabled. Enable it in Settings.'),
+            action: SnackBarAction(
+              label: 'Settings',
+              onPressed: () => context.push('/settings'),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    setState(() => _isSyncing = true);
+    try {
+      await _syncService.syncAllFriends();
+      if (mounted) {
+        _loadFriends();
+      }
+    } catch (_) {
+      // Handled silently
+    } finally {
+      if (mounted) setState(() => _isSyncing = false);
+    }
+  }
+
+  Future<void> _showQrOptionsBottomSheet() async {
+    final choice = await showModalBottomSheet<int>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.qr_code),
+              title: const Text('Show My QR'),
+              subtitle: const Text('Share your timetable with friends'),
+              onTap: () => Navigator.pop(context, 0),
+            ),
+            ListTile(
+              leading: const Icon(Icons.qr_code_scanner),
+              title: const Text('Scan Friend QR'),
+              subtitle: const Text('Scan a friend\'s QR code to add them'),
+              onTap: () => Navigator.pop(context, 1),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (choice == 0 && mounted) {
+      await context.push('/friends/share');
+      _loadFriends();
+    } else if (choice == 1 && mounted) {
+      await _openScanScreen();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (!_onboardingChecked) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_showOnboarding) {
+      return FriendsOnboardingScreen(
+        onContinueOffline: () {
+          setState(() {
+            _showOnboarding = false;
+          });
+          _loadFriends();
+        },
+        onEnableOnlineSync: () async {
+          final result = await context.push('/friends/privacy-policy');
+          final isEnabled = await _syncService.isOnlineSyncEnabled();
+          if (result == true || isEnabled) {
+            if (mounted) {
+              setState(() {
+                _showOnboarding = false;
+              });
+              _loadFriends();
+              _syncAll();
+            }
+          }
+        },
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Friends'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.qr_code_scanner),
-            tooltip: 'Scan Friend QR',
-            onPressed: () async {
-              await context.push('/friends/scan');
-              _loadFriends(); // Reload after scanning
+            icon: _isSyncing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.sync),
+            tooltip: 'Sync Online Friends',
+            onPressed: _isSyncing ? null : _syncAll,
+          ),
+          IconButton(
+            icon: const Icon(Icons.devices_outlined),
+            tooltip: 'Access Management',
+            onPressed: () {
+              context.push('/friends/sync-access');
             },
           ),
           IconButton(
             icon: const Icon(Icons.qr_code),
-            tooltip: 'Share Your QR',
-            onPressed: () {
-              context.push('/friends/share');
-            },
+            tooltip: 'QR Code Options',
+            onPressed: _showQrOptionsBottomSheet,
           ),
         ],
       ),
       body: _friends.isEmpty
           ? _buildEmptyState()
-          : ListView.builder(
-              itemCount: _friends.length,
-              itemBuilder: (context, index) {
-                final friend = _friends[index];
-                return _buildFriendCard(friend);
-              },
-            ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final choice = await showModalBottomSheet<int>(
-            context: context,
-            builder: (context) => SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.qr_code),
-                    title: const Text('Show My QR'),
-                    onTap: () => Navigator.pop(context, 0),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.qr_code_scanner),
-                    title: const Text('Scan Friend QR'),
-                    onTap: () => Navigator.pop(context, 1),
-                  ),
-                ],
+          : RefreshIndicator(
+              onRefresh: _syncAll,
+              child: ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: _friends.length,
+                itemBuilder: (context, index) {
+                  final friend = _friends[index];
+                  return _buildFriendCard(friend);
+                },
               ),
             ),
-          );
-
-          if (choice == 0 && context.mounted) {
-            await context.push('/friends/share');
-            _loadFriends();
-          } else if (choice == 1 && context.mounted) {
-            await context.push('/friends/scan');
-            _loadFriends();
-          }
-        },
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showQrOptionsBottomSheet,
         icon: const Icon(Icons.person_add),
         label: const Text('Add Friend'),
       ),
@@ -132,9 +239,7 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
       );
 
       int toMins(String t) {
-        final parts = t.split(':');
-        if (parts.length < 2) return -1;
-        return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+        return parseTimeToMinutes(t) ?? -1;
       }
 
       final nowM = now.hour * 60 + now.minute;
@@ -220,10 +325,7 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
             ),
             const SizedBox(height: 32),
             FilledButton.icon(
-              onPressed: () async {
-                await context.push('/friends/scan');
-                _loadFriends();
-              },
+              onPressed: _openScanScreen,
               icon: const Icon(Icons.qr_code_scanner),
               label: const Text('Scan Friend QR'),
             ),
@@ -339,6 +441,36 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                                         .withValues(alpha: 0.6),
                                   ),
                             ),
+                            if (friend.isOnlineSync) ...[
+                              const SizedBox(width: 8),
+                              Tooltip(
+                                message: 'Synced via Cloud (ChaCha20 encrypted)',
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.cloud_done,
+                                      size: 14,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      'Synced',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 11,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ],
@@ -401,18 +533,17 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.edit),
-              title: const Text('Edit Name'),
+              title: const Text('Edit Profile'),
               onTap: () {
                 Navigator.pop(context);
-                _editFriendName(friend);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_camera),
-              title: const Text('Set Profile Picture'),
-              onTap: () {
-                Navigator.pop(context);
-                _setProfilePicture(friend);
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (context) => EditFriendBottomSheet(
+                    friend: friend,
+                    onSaved: () => _loadFriends(),
+                  ),
+                );
               },
             ),
             ListTile(
@@ -427,28 +558,6 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
         ),
       ),
     );
-  }
-
-  void _setProfilePicture(Friend friend) async {
-    // Use ImagePicker to pick an image from gallery
-    try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? file = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 800,
-        maxHeight: 800,
-      );
-      if (file == null) return;
-      final updated = friend.copyWith(profilePicPath: file.path);
-      await _friendsService.saveFriend(updated);
-      _loadFriends();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error selecting image: $e')));
-      }
-    }
   }
 
   void _confirmDelete(Friend friend) {
@@ -476,39 +585,6 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
     );
   }
 
-  void _editFriendName(Friend friend) async {
-    final controller = TextEditingController(text: friend.name);
-    final newName = await showDialog<String?>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Name'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            hintText: 'Nickname or display name',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, null),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-
-    if (newName == null || newName.isEmpty) return;
-
-    final normalized = newName.replaceAll(RegExp(r'\s+'), ' ').trim();
-    final updated = friend.copyWith(name: normalized);
-    await _friendsService.saveFriend(updated);
-    _loadFriends();
-  }
 
   IconData _getPrivacyIcon(PrivacyLevel level) {
     switch (level) {

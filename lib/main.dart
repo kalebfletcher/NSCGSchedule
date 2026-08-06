@@ -14,6 +14,7 @@ import 'package:go_router/go_router.dart';
 import 'package:nscgschedule/notifications.dart';
 import 'package:nscgschedule/updater.dart';
 import 'package:nscgschedule/badges_service.dart';
+import 'package:nscgschedule/services/timetable_sync_service.dart';
 
 final getIt = GetIt.instance;
 
@@ -55,6 +56,10 @@ Future<void> _initServices() async {
   final friendsService = FriendsService();
   await friendsService.init();
   getIt.registerSingleton<FriendsService>(friendsService);
+
+  // Timetable Sync Service (online sharing and syncing)
+  final timetableSyncService = TimetableSyncService();
+  getIt.registerSingleton<TimetableSyncService>(timetableSyncService);
 
   // Notification Service
   final notificationService = NotificationService();
@@ -134,6 +139,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       // start in background; don't await
       BadgesService.instance.init().catchError((_) {});
     });
+    // Lazily sync online friends schedules and mailbox after startup animation completes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(seconds: 5), () {
+        getIt<TimetableSyncService>().syncAllFriends().catchError((_) => 0);
+        getIt<TimetableSyncService>().checkAndSyncMailbox().catchError((_) => <MailboxEntry>[]);
+      });
+    });
     // Run updater check once at startup and then once every 24 hours
     NSCGScheduleLatest.checkUpdate();
     _updateTimer = Timer.periodic(const Duration(hours: 24), (_) {
@@ -163,6 +175,19 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         }
       }
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Reload debug time when app comes to foreground
+      getIt<DebugService>().loadFromPrefs();
+      // Sync friends and mailbox on resume, slightly delayed to avoid jank
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        getIt<TimetableSyncService>().syncAllFriends().catchError((_) => 0);
+        getIt<TimetableSyncService>().checkAndSyncMailbox().catchError((_) => <MailboxEntry>[]);
+      });
+    }
   }
 
   Future<void> _initTheme() async {

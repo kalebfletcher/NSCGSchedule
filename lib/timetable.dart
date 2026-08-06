@@ -318,12 +318,18 @@ class _TimetableScreenState extends State<TimetableScreen> {
             _isLoading = false;
           });
           _scheduleNotifications();
-          _loadTimetable();
+          if (!_debugMode) {
+            _loadTimetable();
+          }
         }
       } catch (e, stacktrace) {
         debugPrint('Error loading timetable: $e');
         debugPrint('Stacktrace: $stacktrace');
         await settings.setMap('timetable', {});
+      }
+    } else {
+      if (!_debugMode) {
+        _loadTimetable();
       }
     }
   }
@@ -464,6 +470,9 @@ class _TimetableScreenState extends State<TimetableScreen> {
 
                 if (url.toString().startsWith('https://my.nulc.ac.uk')) {
                   try {
+                    // Extract identity from URL authToken if present
+                    await _requests.processAuthUrl(url.toString());
+
                     // Save cookies first
                     final cookies = await _cookieManager.getCookies(
                       url: WebUri('https://my.nulc.ac.uk'),
@@ -474,6 +483,9 @@ class _TimetableScreenState extends State<TimetableScreen> {
                     try {
                       _requests.loggedinController.add(true);
                     } catch (_) {}
+
+                    // Fetch user profile identity (independent of timetable)
+                    await _requests.fetchUserProfile();
 
                     // Clean up after navigation is scheduled
                     await _cookieManager.deleteAllCookies();

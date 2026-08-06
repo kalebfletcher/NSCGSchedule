@@ -102,6 +102,9 @@ class _LoginState extends State<Login> {
 
             if (url.toString().startsWith('https://my.nulc.ac.uk')) {
               try {
+                // Extract identity from URL authToken if present
+                await NSCGRequests.instance.processAuthUrl(url.toString());
+
                 // Save cookies first
                 final cookies = await _cookieManager.getCookies(
                   url: WebUri('https://my.nulc.ac.uk'),
@@ -109,8 +112,9 @@ class _LoginState extends State<Login> {
                 await settings.setKey('cookies', cookies.toString());
                 await settings.setBool('loggedin', true);
 
-                // Get timetable
-                await NSCGRequests().getTimeTable();
+                // Fetch user profile identity (independent of timetable) & timetable
+                await NSCGRequests.instance.fetchUserProfile();
+                await NSCGRequests.instance.getTimeTable();
 
                 // Clean up after navigation is scheduled
                 await _cookieManager.deleteAllCookies();
@@ -118,7 +122,6 @@ class _LoginState extends State<Login> {
                 // ignore: use_build_context_synchronously
                 context.go('/Timetable');
               } catch (e) {
-                debugPrint('Login error: $e');
                 if (mounted) {
                   // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(

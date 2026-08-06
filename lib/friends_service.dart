@@ -20,8 +20,10 @@ class FriendsService {
   }
 
   /// Get all saved friends
-  List<Friend> getAllFriends() {
-    return _friendsBox.values.toList();
+  List<Friend> getAllFriends({bool includeHidden = false}) {
+    final all = _friendsBox.values.toList();
+    if (includeHidden) return all;
+    return all.where((f) => !f.isHidden).toList();
   }
 
   /// Get a specific friend by ID
@@ -253,38 +255,18 @@ class FriendsService {
     return null;
   }
 
-  /// Compare two time strings (format: "HH:mm")
+  /// Compare two time strings
   int _compareTime(String time1, String time2) {
-    final parts1 = time1.split(':');
-    final parts2 = time2.split(':');
-
-    final hour1 = int.parse(parts1[0]);
-    final min1 = int.parse(parts1[1]);
-    final hour2 = int.parse(parts2[0]);
-    final min2 = int.parse(parts2[1]);
-
-    if (hour1 != hour2) return hour1 - hour2;
-    return min1 - min2;
+    final m1 = parseTimeToMinutes(time1) ?? 0;
+    final m2 = parseTimeToMinutes(time2) ?? 0;
+    return m1 - m2;
   }
 
   /// Calculate duration between two times
   Duration _calculateDuration(String startTime, String endTime) {
-    final start = _parseTime(startTime);
-    final end = _parseTime(endTime);
-    return end.difference(start);
-  }
-
-  /// Parse time string to DateTime (using today as reference)
-  DateTime _parseTime(String time) {
-    final parts = time.split(':');
-    final now = DateTime.now();
-    return DateTime(
-      now.year,
-      now.month,
-      now.day,
-      int.parse(parts[0]),
-      int.parse(parts[1]),
-    );
+    final m1 = parseTimeToMinutes(startTime) ?? 0;
+    final m2 = parseTimeToMinutes(endTime) ?? 0;
+    return Duration(minutes: m2 - m1);
   }
 }
 

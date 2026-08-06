@@ -206,7 +206,9 @@ class Timetable {
         final span = h.querySelector('span');
         if (span != null) {
           final s = normalizeName(span.text);
-          if (s.isNotEmpty) return s;
+          if (s.isNotEmpty) {
+            return s;
+          }
         }
 
         // Fallback: take the portion of the header before the phrase
@@ -217,7 +219,35 @@ class Timetable {
           // Strip stray punctuation at the end and collapse whitespace
           name = name.replaceAll(RegExp(r"[\-:,]+"), ' ');
           name = normalizeName(name);
-          if (name.isNotEmpty) return name;
+          if (name.isNotEmpty) {
+            return name;
+          }
+        }
+      }
+    }
+
+    // Check all headers (h1, h2, h3, h4) for "Welcome, <Name>" or "<Name>'s Timetable"
+    final allHeaders = document.querySelectorAll('h1, h2, h3, h4');
+    for (final h in allHeaders) {
+      final text = normalizeName(h.text);
+      final welcomeMatch = RegExp(
+        r"Welcome,?\s+([A-Za-z\s'-]+)",
+        caseSensitive: false,
+      ).firstMatch(text);
+      if (welcomeMatch != null) {
+        final name = welcomeMatch.group(1)?.trim() ?? '';
+        if (name.isNotEmpty) {
+          return name;
+        }
+      }
+      final apostropheMatch = RegExp(
+        r"^([A-Za-z\s'-]+)'s\s+Timetable",
+        caseSensitive: false,
+      ).firstMatch(text);
+      if (apostropheMatch != null) {
+        final name = apostropheMatch.group(1)?.trim() ?? '';
+        if (name.isNotEmpty) {
+          return name;
         }
       }
     }
@@ -227,7 +257,9 @@ class Timetable {
     final title = document.querySelector('title')?.text;
     if (title != null) {
       final t = normalizeName(title);
-      if (t.isNotEmpty && !t.toLowerCase().contains('timetable')) return t;
+      if (t.isNotEmpty && !t.toLowerCase().contains('timetable')) {
+        return t;
+      }
     }
 
     return null;

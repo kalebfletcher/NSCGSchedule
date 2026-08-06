@@ -9,6 +9,9 @@ import 'package:nscgschedule/friends_list.dart';
 import 'package:nscgschedule/friends_qr.dart';
 import 'package:nscgschedule/friends_gaps.dart';
 import 'package:nscgschedule/friend_profile.dart';
+import 'package:nscgschedule/timetable_access_list.dart';
+import 'package:nscgschedule/friends_onboarding.dart';
+import 'package:nscgschedule/privacy_policy_screen.dart';
 import 'package:nscgschedule/updater.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nscgschedule/settings.dart';
@@ -100,6 +103,24 @@ final GoRouter routerController = GoRouter(
                 return FriendProfileScreen(friendId: friendId);
               },
             ),
+            GoRoute(
+              path: 'sync-access',
+              builder: (BuildContext context, GoRouterState state) {
+                return TimetableAccessListScreen();
+              },
+            ),
+            GoRoute(
+              path: 'onboarding',
+              builder: (BuildContext context, GoRouterState state) {
+                return const FriendsOnboardingScreen();
+              },
+            ),
+            GoRoute(
+              path: 'privacy-policy',
+              builder: (BuildContext context, GoRouterState state) {
+                return const PrivacyPolicyScreen();
+              },
+            ),
           ],
         ),
         GoRoute(
@@ -112,6 +133,12 @@ final GoRouter routerController = GoRouter(
               path: 'updates',
               builder: (BuildContext context, GoRouterState state) {
                 return UpdaterScreen();
+              },
+            ),
+            GoRoute(
+              path: 'privacy-policy',
+              builder: (BuildContext context, GoRouterState state) {
+                return const PrivacyPolicyScreen(isReviewOnly: true);
               },
             ),
           ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import 'package:nscgschedule/friends_service.dart';
 import 'package:nscgschedule/models/friend_models.dart';
 import 'package:nscgschedule/models/timetable_models.dart' as models;
@@ -98,23 +99,51 @@ class _GapsFinderScreenState extends State<GapsFinderScreen> {
   }
 
   Widget _buildError() {
+    final isMissingTimetable =
+        _error?.contains('timetable is not loaded') ?? false;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(32.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Theme.of(context).colorScheme.error,
+              isMissingTimetable ? Icons.calendar_month : Icons.error_outline,
+              size: 120,
+              color: isMissingTimetable
+                  ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)
+                  : Theme.of(context).colorScheme.error,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
+            Text(
+              isMissingTimetable
+                  ? 'No Timetable Available'
+                  : 'Something Went Wrong',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 12),
             Text(
               _error!,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
             ),
+            const SizedBox(height: 32),
+            if (isMissingTimetable)
+              FilledButton.icon(
+                onPressed: () => context.go('/timetable'),
+                icon: const Icon(Icons.calendar_month),
+                label: const Text('Go to Timetable'),
+              )
+            else
+              FilledButton.icon(
+                onPressed: _loadData,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
           ],
         ),
       ),
@@ -124,13 +153,13 @@ class _GapsFinderScreenState extends State<GapsFinderScreen> {
   Widget _buildNoGaps() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(32.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               Icons.event_busy,
-              size: 80,
+              size: 120,
               color: Theme.of(
                 context,
               ).colorScheme.primary.withValues(alpha: 0.3),
@@ -149,6 +178,12 @@ class _GapsFinderScreenState extends State<GapsFinderScreen> {
                   context,
                 ).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
+            ),
+            const SizedBox(height: 32),
+            FilledButton.icon(
+              onPressed: () => context.pop(),
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Back to Profile'),
             ),
           ],
         ),

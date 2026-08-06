@@ -3,12 +3,13 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nscgschedule/friends_service.dart';
 import 'package:nscgschedule/models/friend_models.dart';
+import 'package:nscgschedule/edit_friend_bottom_sheet.dart';
 import 'package:intl/intl.dart';
 import 'package:nscgschedule/badges_service.dart';
 import 'dart:io';
-import 'package:image_picker/image_picker.dart';
 import 'dart:async';
 import 'package:nscgschedule/debug_service.dart';
+import 'package:nscgschedule/services/timetable_sync_service.dart';
 
 class FriendProfileScreen extends StatefulWidget {
   final String friendId;
@@ -21,8 +22,10 @@ class FriendProfileScreen extends StatefulWidget {
 
 class _FriendProfileScreenState extends State<FriendProfileScreen> {
   final FriendsService _friendsService = GetIt.I<FriendsService>();
+  final TimetableSyncService _syncService = GetIt.I<TimetableSyncService>();
   Friend? _friend;
   bool _isLoading = true;
+  bool _isSyncing = false;
   Timer? _refreshTimer;
   final DebugService _debug = GetIt.I<DebugService>();
 
@@ -41,6 +44,7 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
   void _loadFriend() {
     setState(() => _isLoading = true);
     final friend = _friendsService.getFriend(widget.friendId);
+    _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() {});
@@ -49,6 +53,21 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
       _friend = friend;
       _isLoading = false;
     });
+  }
+
+  Future<void> _syncFriendNow() async {
+    if (_friend == null || !_friend!.isOnlineSync || _isSyncing) return;
+    setState(() => _isSyncing = true);
+    try {
+      await _syncService.syncFriend(_friend!);
+      if (mounted) {
+        _loadFriend();
+      }
+    } catch (_) {
+      // Handled silently
+    } finally {
+      if (mounted) setState(() => _isSyncing = false);
+    }
   }
 
   @override
@@ -71,19 +90,35 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
       appBar: AppBar(
         title: Text(_friend!.name),
         actions: [
-          IconButton(icon: const Icon(Icons.edit), onPressed: _editName),
+          if (_friend!.isOnlineSync)
+            IconButton(
+              icon: _isSyncing
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.sync),
+              tooltip: 'Sync Now',
+              onPressed: _isSyncing ? null : _syncFriendNow,
+            ),
           IconButton(icon: const Icon(Icons.delete), onPressed: _confirmDelete),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 8),
-            _buildActions(),
-            const SizedBox(height: 16),
-            _buildSchedulePreview(),
-          ],
+      body: RefreshIndicator(
+        onRefresh: _friend!.isOnlineSync ? _syncFriendNow : () async {},
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 12),
+              _buildActions(),
+              const SizedBox(height: 4),
+              _buildSchedulePreview(),
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );
@@ -158,20 +193,67 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
                   ).colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
                 ),
               ),
+              if (_friend!.isOnlineSync) ...[
+                const SizedBox(width: 10),
+                Icon(
+                  Icons.cloud_done,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Cloud Synced',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              ],
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
-            'Added ${DateFormat.yMMMd().format(_friend!.addedAt)}',
+            _friend!.isOnlineSync && _friend!.lastSyncedAt != null
+                ? 'Added ${_formatShortDate(_friend!.addedAt)} • Synced ${_formatShortSyncTime(_friend!.lastSyncedAt!)}'
+                : 'Added ${_formatShortDate(_friend!.addedAt)}',
+            textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(
                 context,
-              ).colorScheme.onPrimaryContainer.withValues(alpha: 0.5),
+              ).colorScheme.onPrimaryContainer.withValues(alpha: 0.6),
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _formatShortSyncTime(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.isNegative || diff.inMinutes < 1) {
+      return 'just now';
+    } else if (diff.inMinutes < 60) {
+      return '${diff.inMinutes}m ago';
+    } else if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
+      return DateFormat.jm().format(dt);
+    } else if (now.difference(DateTime(dt.year, dt.month, dt.day)).inDays == 1) {
+      return 'yesterday';
+    } else if (diff.inDays < 7) {
+      return '${diff.inDays}d ago';
+    } else if (dt.year == now.year) {
+      return DateFormat.MMMd().format(dt);
+    } else {
+      return DateFormat.yMMMd().format(dt);
+    }
+  }
+
+  String _formatShortDate(DateTime dt) {
+    final now = DateTime.now();
+    if (dt.year == now.year) {
+      return DateFormat.MMMd().format(dt);
+    }
+    return DateFormat.yMMMd().format(dt);
   }
 
   Widget _buildActions() {
@@ -191,9 +273,9 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: _setProfilePicture,
-              icon: const Icon(Icons.photo_camera),
-              label: const Text('Set Profile Picture'),
+              onPressed: _editProfile,
+              icon: const Icon(Icons.edit),
+              label: const Text('Edit Profile'),
             ),
           ),
         ],
@@ -202,8 +284,65 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
   }
 
   Widget _buildSchedulePreview() {
+    final totalLessons = _friend!.timetable.days.fold<int>(
+      0,
+      (sum, d) => sum + d.lessons.length,
+    );
+
+    if (totalLessons == 0) {
+      return Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.calendar_month,
+                size: 100,
+                color: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.3),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'No Timetable Available',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _friend!.isOnlineSync
+                    ? '${_friend!.name}\'s timetable hasn\'t been synced yet or has no scheduled classes.'
+                    : '${_friend!.name} doesn\'t have any classes in their timetable.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+              if (_friend!.isOnlineSync) ...[
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  onPressed: _isSyncing ? null : _syncFriendNow,
+                  icon: _isSyncing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.sync),
+                  label: const Text('Sync Timetable'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
     return Card(
-      margin: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -458,57 +597,13 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
     );
   }
 
-  void _setProfilePicture() async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? file = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1200,
-        maxHeight: 1200,
-      );
-      if (file == null) return;
-      final updated = _friend!.copyWith(profilePicPath: file.path);
-      await _friendsService.saveFriend(updated);
-      _loadFriend();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error selecting image: $e')));
-      }
-    }
-  }
-
-  void _editName() {
-    final controller = TextEditingController(text: _friend!.name);
-    showDialog(
+  void _editProfile() {
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Name'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            hintText: 'Nickname or display name',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final newName = controller.text.trim();
-              if (newName.isEmpty) return;
-              final updated = _friend!.copyWith(name: newName);
-              await _friendsService.saveFriend(updated);
-              _loadFriend();
-              if (context.mounted) Navigator.pop(context);
-            },
-            child: const Text('Save'),
-          ),
-        ],
+      isScrollControlled: true,
+      builder: (context) => EditFriendBottomSheet(
+        friend: _friend!,
+        onSaved: () => _loadFriend(),
       ),
     );
   }
