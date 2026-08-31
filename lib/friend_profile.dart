@@ -116,6 +116,8 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
               _buildActions(),
               const SizedBox(height: 4),
               _buildSchedulePreview(),
+              if (_friend!.timetable.exams != null && _friend!.timetable.exams!.isNotEmpty)
+                _buildExamPreview(),
               const SizedBox(height: 16),
             ],
           ),
@@ -341,41 +343,48 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
       );
     }
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.calendar_month,
-                  color: Theme.of(context).colorScheme.primary,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.calendar_month,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Weekly Schedule',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  'Weekly Schedule',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                child: Text(
+                  '${_friend!.timetable.days.fold<int>(0, (sum, d) => sum + d.lessons.length)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
                 ),
-                const Spacer(),
-                Text(
-                  '${_friend!.timetable.days.fold<int>(0, (sum, d) => sum + d.lessons.length)} lessons',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Column(
-              children: _friend!.timetable.days
-                  .map((day) => _buildDayRow(day))
-                  .toList(),
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Column(
+            children: _friend!.timetable.days
+                .map((day) => _buildDayRow(day))
+                .toList(),
+          ),
+        ],
       ),
     );
   }
@@ -476,111 +485,80 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
                                     ? Theme.of(context).colorScheme.secondary
                                     : accent;
 
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(8),
+                                return Card(
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    side: BorderSide(
+                                      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                                    ),
                                   ),
-                                  child: IntrinsicHeight(
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        Container(
-                                          width: 6,
-                                          decoration: BoxDecoration(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          left: BorderSide(
                                             color: sideColor,
-                                            borderRadius:
-                                                const BorderRadius.only(
-                                                  topLeft: Radius.circular(8),
-                                                  bottomLeft: Radius.circular(
-                                                    8,
-                                                  ),
-                                                ),
+                                            width: 4,
                                           ),
                                         ),
-                                        Expanded(
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 8,
-                                            ),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16.0),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
-                                                Text.rich(
-                                                  TextSpan(
-                                                    text:
-                                                        '${lesson.startTime} - ${lesson.endTime}',
-                                                    style: Theme.of(context)
-                                                        .textTheme
-                                                        .bodySmall
-                                                        ?.copyWith(
-                                                          fontWeight:
-                                                              FontWeight.w600,
+                                                Expanded(
+                                                  child: Text(
+                                                    lesson.name ?? 'Busy',
+                                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                                          fontWeight: FontWeight.w700,
                                                         ),
-                                                    children: [
-                                                      WidgetSpan(
-                                                        child: const SizedBox(
-                                                          width: 8,
-                                                        ),
-                                                      ),
-                                                      if (lesson.name != null &&
-                                                          lesson
-                                                              .name!
-                                                              .isNotEmpty)
-                                                        TextSpan(
-                                                          text: lesson.name!,
-                                                          style:
-                                                              Theme.of(context)
-                                                                  .textTheme
-                                                                  .bodyMedium,
-                                                        ),
-                                                    ],
                                                   ),
                                                 ),
-                                                if (lesson.room != null &&
-                                                    lesson.room!.isNotEmpty)
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                          top: 6,
-                                                        ),
-                                                    child: Row(
-                                                      children: [
-                                                        Icon(
-                                                          Icons.place,
-                                                          size: 14,
-                                                          color: Theme.of(context)
-                                                              .colorScheme
-                                                              .onSurfaceVariant,
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 6,
-                                                        ),
-                                                        Text(
-                                                          lesson.room!,
-                                                          style: Theme.of(context)
-                                                              .textTheme
-                                                              .bodySmall
-                                                              ?.copyWith(
-                                                                color: Theme.of(context)
-                                                                    .colorScheme
-                                                                    .onSurfaceVariant,
-                                                              ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
                                               ],
                                             ),
-                                          ),
+                                            const SizedBox(height: 12),
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.schedule,
+                                                  size: 16,
+                                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  '${lesson.startTime} - ${lesson.endTime}',
+                                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                      ),
+                                                ),
+                                                if (lesson.room != null && lesson.room!.isNotEmpty) ...[
+                                                  const Spacer(),
+                                                  Icon(
+                                                    Icons.room,
+                                                    size: 16,
+                                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    lesson.room!,
+                                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                          fontWeight: FontWeight.w500,
+                                                        ),
+                                                  ),
+                                                ]
+                                              ],
+                                            ),
+                                          ],
                                         ),
-                                      ],
+                                      ),
                                     ),
                                   ),
                                 );
@@ -592,6 +570,166 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExamPreview() {
+    final exams = _friend!.timetable.exams!;
+    
+    // Sort exams by date if possible
+    // Note: dates are formatted like "04-11-2025" (dd-mm-yyyy)
+    final sortedExams = List<FriendExam>.from(exams)..sort((a, b) {
+      DateTime? parseDate(String d) {
+        try {
+          final p = d.split('-');
+          return DateTime(int.parse(p[2]), int.parse(p[1]), int.parse(p[0]));
+        } catch (_) { return null; }
+      }
+      final da = parseDate(a.date);
+      final db = parseDate(b.date);
+      if (da == null || db == null) return 0;
+      return da.compareTo(db);
+    });
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.assignment,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Upcoming Exams',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${exams.length}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...sortedExams.map((exam) {
+            return Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                ),
+              ),
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      left: BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 4,
+                      ),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                exam.subjectDescription,
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .secondaryContainer,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                exam.date,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSecondaryContainer,
+                                    ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.schedule,
+                              size: 16,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${exam.startTime} - ${exam.finishTime}',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                            ),
+                            const Spacer(),
+                            Icon(
+                              Icons.room,
+                              size: 16,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              exam.examRoom,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
         ],
       ),
     );

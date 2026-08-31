@@ -3,7 +3,6 @@ import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -17,26 +16,23 @@ android {
     namespace = "uk.bw86.nscgschedule"
     compileSdk = 37
     ndkVersion = "28.2.13676358"
-
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
-    }
+
 
     sourceSets {
-        getByName("main").java.srcDirs("src/main/kotlin")
+        getByName("main").java.srcDir("src/main/kotlin")
     }
 
     defaultConfig {
         applicationId = "uk.bw86.nscgschedule"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode?.toInt() ?: 1
+        versionCode = flutter.versionCode ?: 1
         versionName = flutter.versionName ?: "1.0.0"
         multiDexEnabled = true
     }
@@ -71,10 +67,15 @@ android {
     }
 }
 
+tasks.configureEach {
+    if (name.contains("compile") && name.contains("ArtProfile")) {
+        enabled = false
+    }
+}
+
 flutter {
     source = "../.."
 }
-
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     implementation("androidx.window:window:1.0.0")

@@ -12,6 +12,8 @@ import 'package:nscgschedule/settings.dart';
 import 'package:nscgschedule/watch_service.dart';
 import 'package:nscgschedule/widget_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:get_it/get_it.dart';
+import 'package:nscgschedule/services/timetable_sync_service.dart';
 import 'package:nscgschedule/updater.dart';
 
 class NSCGRequests {
@@ -318,7 +320,7 @@ class NSCGRequests {
     return result;
   }
 
-  Future<Timetable?> getTimeTable({bool notifyWatch = true}) async {
+  Future<Timetable?> getTimeTable({bool notifyWatch = true, bool fetchOther = true}) async {
     try {
       final isDebug = await settings.getBool('debugMode', defaultValue: false);
       if (isDebug) {
@@ -336,7 +338,7 @@ class NSCGRequests {
         return null;
       }
 
-      debugPrint('[NSCGRequests] getTimeTable: GET /studentTT/ requesting...');
+
       final response = await _dio.get<String>(
         '/studentTT/',
         options: Options(
@@ -345,12 +347,12 @@ class NSCGRequests {
         ),
       );
 
-      debugPrint('[NSCGRequests] getTimeTable: status=${response.statusCode}, realUri=${response.realUri}');
+
       if (response.statusCode == 200 &&
           response.data != null &&
           response.realUri.toString().contains('studentTT/')) {
         Timetable timetable = Timetable.fromHtml(response.data!);
-        debugPrint('[NSCGRequests] getTimeTable: parsed timetable with ${timetable.days.length} days');
+
 
         // Extract user profile info (name, refNo, username)
         await fetchUserProfile();
@@ -367,6 +369,21 @@ class NSCGRequests {
         }
         // Sync to home screen widgets
         await WidgetService.instance.syncTimetableToWidget();
+        
+        // Sync to online friends network
+        try {
+          final syncService = GetIt.I<TimetableSyncService>();
+          if (await syncService.isOnlineSyncEnabled()) {
+             await syncService.updateOnlineTimetable(timetable: timetable);
+          }
+        } catch (e) {
+          // Ignore
+        }
+
+        if (fetchOther) {
+          getExamTimetable(notifyWatch: notifyWatch, fetchOther: false);
+        }
+
         return timetable;
       } else {
         settings.setBool('loggedin', false);
@@ -378,7 +395,7 @@ class NSCGRequests {
     }
   }
 
-  Future<ExamTimetable?> getExamTimetable({bool notifyWatch = true}) async {
+  Future<ExamTimetable?> getExamTimetable({bool notifyWatch = true, bool fetchOther = true}) async {
     try {
       final isDebug = await settings.getBool('debugMode', defaultValue: false);
       if (isDebug) {
@@ -417,6 +434,25 @@ class NSCGRequests {
         }
         // Sync to home screen widgets
         await WidgetService.instance.syncExamTimetableToWidget();
+        
+        // Sync to online friends network
+        try {
+          final syncService = GetIt.I<TimetableSyncService>();
+          if (await syncService.isOnlineSyncEnabled()) {
+             final existing = await settings.getMap('timetable');
+             if (existing.isNotEmpty) {
+               final tt = Timetable.fromJson(Map<String, dynamic>.from(existing));
+               await syncService.updateOnlineTimetable(timetable: tt);
+             }
+          }
+        } catch (e) {
+          // Ignore
+        }
+
+        if (fetchOther) {
+          getTimeTable(notifyWatch: notifyWatch, fetchOther: false);
+        }
+
         return examTimetable;
       } else {
         settings.setBool('loggedin', false);

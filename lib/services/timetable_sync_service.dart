@@ -9,6 +9,7 @@ import 'package:nscgschedule/friends_service.dart';
 import 'package:nscgschedule/models/friend_models.dart';
 import 'package:nscgschedule/models/timetable_models.dart' as models;
 import 'package:nscgschedule/settings.dart';
+import 'package:nscgschedule/models/exam_models.dart' as exam_models;
 import 'package:uuid/uuid.dart';
 
 class TimetableSyncService {
@@ -200,7 +201,8 @@ class TimetableSyncService {
       secretKey: secretKey,
     );
 
-    return utf8.decode(decryptedBytes);
+    final decrypted = utf8.decode(decryptedBytes);
+    return decrypted;
   }
 
   // ==================== OWNER PUBLISHING & UPDATES ====================
@@ -228,10 +230,20 @@ class TimetableSyncService {
     final serverUrl = customServerUrl ?? await getServerUrl();
     final fileId = const Uuid().v4();
 
+    final examData = await settings.getMap('examTimetable');
+    List<exam_models.Exam>? exams;
+    if (examData.isNotEmpty) {
+      try {
+        final et = exam_models.ExamTimetable.fromJson(Map<String, dynamic>.from(examData));
+        exams = et.exams;
+      } catch (_) {}
+    }
+
     // 1. Generate FriendTimetable for all 3 privacy levels
     final ttAllObj = FriendTimetable.fromTimetable(
       timetable,
       PrivacyLevel.fullDetails,
+      exams: exams,
     );
     final ttBusyObj = FriendTimetable.fromTimetable(
       timetable,
@@ -332,9 +344,19 @@ class TimetableSyncService {
       return true;
     }
 
+    final examData = await settings.getMap('examTimetable');
+    List<exam_models.Exam>? exams;
+    if (examData.isNotEmpty) {
+      try {
+        final et = exam_models.ExamTimetable.fromJson(Map<String, dynamic>.from(examData));
+        exams = et.exams;
+      } catch (_) {}
+    }
+
     final ttAllObj = FriendTimetable.fromTimetable(
       timetable,
       PrivacyLevel.fullDetails,
+      exams: exams,
     );
     final ttBusyObj = FriendTimetable.fromTimetable(
       timetable,

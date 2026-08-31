@@ -9,6 +9,7 @@ extension HiveRegistrar on HiveInterface {
   void registerAdapters() {
     registerAdapter(FriendAdapter());
     registerAdapter(FriendDayScheduleAdapter());
+    registerAdapter(FriendExamAdapter());
     registerAdapter(FriendLessonAdapter());
     registerAdapter(FriendTimetableAdapter());
     registerAdapter(PrivacyLevelAdapter());
@@ -19,6 +20,7 @@ extension IsolatedHiveRegistrar on IsolatedHiveInterface {
   void registerAdapters() {
     registerAdapter(FriendAdapter());
     registerAdapter(FriendDayScheduleAdapter());
+    registerAdapter(FriendExamAdapter());
     registerAdapter(FriendLessonAdapter());
     registerAdapter(FriendTimetableAdapter());
     registerAdapter(PrivacyLevelAdapter());

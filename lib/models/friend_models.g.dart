@@ -82,6 +82,52 @@ class FriendAdapter extends TypeAdapter<Friend> {
           typeId == other.typeId;
 }
 
+class FriendExamAdapter extends TypeAdapter<FriendExam> {
+  @override
+  final typeId = 5;
+
+  @override
+  FriendExam read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return FriendExam(
+      date: fields[0] as String,
+      startTime: fields[1] as String,
+      finishTime: fields[2] as String,
+      subjectDescription: fields[3] as String,
+      examRoom: fields[4] as String,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, FriendExam obj) {
+    writer
+      ..writeByte(5)
+      ..writeByte(0)
+      ..write(obj.date)
+      ..writeByte(1)
+      ..write(obj.startTime)
+      ..writeByte(2)
+      ..write(obj.finishTime)
+      ..writeByte(3)
+      ..write(obj.subjectDescription)
+      ..writeByte(4)
+      ..write(obj.examRoom);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FriendExamAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
 class FriendTimetableAdapter extends TypeAdapter<FriendTimetable> {
   @override
   final typeId = 2;
@@ -92,15 +138,20 @@ class FriendTimetableAdapter extends TypeAdapter<FriendTimetable> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return FriendTimetable(days: (fields[0] as List).cast<FriendDaySchedule>());
+    return FriendTimetable(
+      days: (fields[0] as List).cast<FriendDaySchedule>(),
+      exams: (fields[1] as List?)?.cast<FriendExam>(),
+    );
   }
 
   @override
   void write(BinaryWriter writer, FriendTimetable obj) {
     writer
-      ..writeByte(1)
+      ..writeByte(2)
       ..writeByte(0)
-      ..write(obj.days);
+      ..write(obj.days)
+      ..writeByte(1)
+      ..write(obj.exams);
   }
 
   @override

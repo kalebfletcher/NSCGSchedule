@@ -1,5 +1,6 @@
 import 'package:hive_ce/hive.dart';
 import 'package:nscgschedule/models/timetable_models.dart' as models;
+import 'package:nscgschedule/models/exam_models.dart' as exam_models;
 
 part 'friend_models.g.dart';
 
@@ -110,19 +111,80 @@ class Friend {
   }
 }
 
+/// Exam data for a friend
+@HiveType(typeId: 5)
+class FriendExam {
+  @HiveField(0)
+  final String date;
+  
+  @HiveField(1)
+  final String startTime;
+  
+  @HiveField(2)
+  final String finishTime;
+  
+  @HiveField(3)
+  final String subjectDescription;
+  
+  @HiveField(4)
+  final String examRoom;
+
+  FriendExam({
+    required this.date,
+    required this.startTime,
+    required this.finishTime,
+    required this.subjectDescription,
+    required this.examRoom,
+  });
+
+  factory FriendExam.fromExam(exam_models.Exam exam) {
+    return FriendExam(
+      date: exam.date,
+      startTime: exam.startTime,
+      finishTime: exam.finishTime,
+      subjectDescription: exam.subjectDescription,
+      examRoom: exam.examRoom,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'date': date,
+      'startTime': startTime,
+      'finishTime': finishTime,
+      'subjectDescription': subjectDescription,
+      'examRoom': examRoom,
+    };
+  }
+
+  factory FriendExam.fromJson(Map<String, dynamic> json) {
+    return FriendExam(
+      date: json['date'] as String,
+      startTime: json['startTime'] as String,
+      finishTime: json['finishTime'] as String,
+      subjectDescription: json['subjectDescription'] as String,
+      examRoom: json['examRoom'] as String,
+    );
+  }
+}
+
 /// Timetable data for a friend (simplified structure)
 @HiveType(typeId: 2)
 class FriendTimetable {
   @HiveField(0)
   final List<FriendDaySchedule> days;
 
-  FriendTimetable({required this.days});
+  @HiveField(1)
+  final List<FriendExam>? exams;
+
+  FriendTimetable({required this.days, this.exams});
 
   /// Convert from full timetable model
   factory FriendTimetable.fromTimetable(
     models.Timetable timetable,
-    PrivacyLevel privacyLevel,
-  ) {
+    PrivacyLevel privacyLevel, {
+    List<exam_models.Exam>? exams,
+  }) {
     // For freeTimeOnly, we convert lessons into free periods (gaps between lessons)
     // so the recipient sees availability windows rather than busy blocks.
     if (privacyLevel == PrivacyLevel.freeTimeOnly) {
@@ -233,11 +295,17 @@ class FriendTimetable {
           }).toList(),
         );
       }).toList(),
+      exams: privacyLevel == PrivacyLevel.fullDetails && exams != null 
+          ? exams.map((e) => FriendExam.fromExam(e)).toList() 
+          : null,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {'days': days.map((d) => d.toJson()).toList()};
+    return {
+      'days': days.map((d) => d.toJson()).toList(),
+      if (exams != null) 'exams': exams!.map((e) => e.toJson()).toList(),
+    };
   }
 
   factory FriendTimetable.fromJson(Map<String, dynamic> json) {
@@ -248,7 +316,18 @@ class FriendTimetable {
               FriendDaySchedule.fromJson(Map<String, dynamic>.from(d as Map)),
         )
         .toList();
-    return FriendTimetable(days: days);
+
+    List<FriendExam>? exams;
+    if (json.containsKey('exams') && json['exams'] != null) {
+      final rawExams = json['exams'] as List;
+      exams = rawExams
+          .map(
+            (e) => FriendExam.fromJson(Map<String, dynamic>.from(e as Map)),
+          )
+          .toList();
+    }
+
+    return FriendTimetable(days: days, exams: exams);
   }
 }
 

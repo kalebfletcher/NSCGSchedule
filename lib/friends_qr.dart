@@ -431,7 +431,7 @@ class _ShareQRScreenState extends State<ShareQRScreen> {
                                 _buildPrivacyOption(
                                   PrivacyLevel.fullDetails,
                                   'Full Details',
-                                  'Shares subjects, rooms, and times',
+                                  'Shares subjects, rooms, times, and exams',
                                   Icons.visibility,
                                 ),
                               ],

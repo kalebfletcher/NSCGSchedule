@@ -41,6 +41,7 @@ Future<void> _initServices() async {
   Hive.registerAdapter(FriendTimetableAdapter());
   Hive.registerAdapter(FriendDayScheduleAdapter());
   Hive.registerAdapter(FriendLessonAdapter());
+  Hive.registerAdapter(FriendExamAdapter());
 
   // Settings
   final settings = Settings();
