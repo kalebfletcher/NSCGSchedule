@@ -431,7 +431,9 @@ class _ShareQRScreenState extends State<ShareQRScreen> {
                                 _buildPrivacyOption(
                                   PrivacyLevel.fullDetails,
                                   'Full Details',
-                                  'Shares subjects, rooms, times, and exams',
+                                  _makeOffline
+                                      ? 'Shares subjects, rooms, and times'
+                                      : 'Shares subjects, rooms, times, and exams',
                                   Icons.visibility,
                                 ),
                               ],
@@ -664,17 +666,21 @@ class _ScanQRScreenState extends State<ScanQRScreen> {
     // Auto-replace by stable userId when available
     if (friendToSave.userId != null && friendToSave.userId!.isNotEmpty) {
       final matches = _friendsService
-          .getAllFriends()
+          .getAllFriends(includeHidden: true)
           .where((f) => f.userId != null && f.userId == friendToSave.userId)
           .toList();
       if (matches.isNotEmpty) {
-        final existingByUserId = matches.first;
-        // Preserve any locally-set profile picture when replacing the entry
+        // Find the best match to keep (prefer visible, then first)
+        final existingByUserId = matches.firstWhere((m) => !m.isHidden, orElse: () => matches.first);
+        
+        // Merge grantedAccessCode if any of the matches have it
+        final mergedAccessCode = matches.map((m) => m.grantedAccessCode).firstWhere((code) => code != null, orElse: () => null);
+
         final replaced = friendToSave.copyWith(
           id: existingByUserId.id,
           addedAt: DateTime.now(),
           profilePicPath: existingByUserId.profilePicPath,
-          grantedAccessCode: existingByUserId.grantedAccessCode,
+          grantedAccessCode: mergedAccessCode,
           syncAccessCode: existingByUserId.syncAccessCode,
           syncDecryptionKey: existingByUserId.syncDecryptionKey,
           syncFileId: existingByUserId.syncFileId,
@@ -682,6 +688,15 @@ class _ScanQRScreenState extends State<ScanQRScreen> {
           isOnlineSync: existingByUserId.isOnlineSync,
           lastSyncedAt: existingByUserId.lastSyncedAt,
         );
+        
+        // Delete all other duplicates
+        for (final m in matches) {
+          if (m.id != existingByUserId.id) {
+            await _friendsService.deleteFriend(m.id);
+          }
+        }
+        
+        await _friendsService.saveFriend(replaced);
         await _friendsService.saveFriend(replaced);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

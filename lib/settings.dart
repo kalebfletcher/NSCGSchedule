@@ -19,6 +19,7 @@ class Settings {
   static const String _notifyMinutesBeforeEnabledKey =
       'notifyMinutesBeforeEnabled';
   static const String _notifyOnStartTimeKey = 'notifyOnStartTime';
+  static const String _dynamicFriendHeaderColorKey = 'dynamicFriendHeaderColor';
 
   late final SharedPreferences _prefs;
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
@@ -202,6 +203,16 @@ class Settings {
     // Also update the value in Hive for consistency
     final box = await _getBox();
     await box.put(_useMaterialYouKey, value);
+  }
+
+  // Dynamic friend header color preference
+  Future<bool> getDynamicFriendHeaderColor() async {
+    return getBool(_dynamicFriendHeaderColorKey, defaultValue: false);
+  }
+
+  Future<void> setDynamicFriendHeaderColor(bool value) async {
+    await setBool(_dynamicFriendHeaderColorKey, value);
+    _themeChangeController.add(true); // Optional: trigger theme update
   }
 
   // Notification settings

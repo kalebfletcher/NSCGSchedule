@@ -74,22 +74,24 @@ class Friend {
     this.grantedAccessCode,
   });
 
+  static const Object _unspecified = Object();
+
   Friend copyWith({
     String? id,
     String? name,
     PrivacyLevel? privacyLevel,
     FriendTimetable? timetable,
     DateTime? addedAt,
-    String? profilePicPath,
-    String? userId,
+    Object? profilePicPath = _unspecified,
+    Object? userId = _unspecified,
     bool? isOnlineSync,
-    String? syncFileId,
-    String? syncAccessCode,
-    String? syncDecryptionKey,
-    String? syncServerUrl,
-    DateTime? lastSyncedAt,
+    Object? syncFileId = _unspecified,
+    Object? syncAccessCode = _unspecified,
+    Object? syncDecryptionKey = _unspecified,
+    Object? syncServerUrl = _unspecified,
+    Object? lastSyncedAt = _unspecified,
     bool? isHidden,
-    String? grantedAccessCode,
+    Object? grantedAccessCode = _unspecified,
   }) {
     return Friend(
       id: id ?? this.id,
@@ -97,16 +99,16 @@ class Friend {
       privacyLevel: privacyLevel ?? this.privacyLevel,
       timetable: timetable ?? this.timetable,
       addedAt: addedAt ?? this.addedAt,
-      profilePicPath: profilePicPath ?? this.profilePicPath,
-      userId: userId ?? this.userId,
+      profilePicPath: profilePicPath == _unspecified ? this.profilePicPath : profilePicPath as String?,
+      userId: userId == _unspecified ? this.userId : userId as String?,
       isOnlineSync: isOnlineSync ?? this.isOnlineSync,
-      syncFileId: syncFileId ?? this.syncFileId,
-      syncAccessCode: syncAccessCode ?? this.syncAccessCode,
-      syncDecryptionKey: syncDecryptionKey ?? this.syncDecryptionKey,
-      syncServerUrl: syncServerUrl ?? this.syncServerUrl,
-      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+      syncFileId: syncFileId == _unspecified ? this.syncFileId : syncFileId as String?,
+      syncAccessCode: syncAccessCode == _unspecified ? this.syncAccessCode : syncAccessCode as String?,
+      syncDecryptionKey: syncDecryptionKey == _unspecified ? this.syncDecryptionKey : syncDecryptionKey as String?,
+      syncServerUrl: syncServerUrl == _unspecified ? this.syncServerUrl : syncServerUrl as String?,
+      lastSyncedAt: lastSyncedAt == _unspecified ? this.lastSyncedAt : lastSyncedAt as DateTime?,
       isHidden: isHidden ?? this.isHidden,
-      grantedAccessCode: grantedAccessCode ?? this.grantedAccessCode,
+      grantedAccessCode: grantedAccessCode == _unspecified ? this.grantedAccessCode : grantedAccessCode as String?,
     );
   }
 }

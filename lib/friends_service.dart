@@ -16,6 +16,38 @@ class FriendsService {
     if (_initialized) return;
 
     _friendsBox = await Hive.openBox<Friend>(_friendsBoxName);
+    
+    // Automatic cleanup of duplicate friends by userId
+    final allFriends = _friendsBox.values.toList();
+    final groupedByUserIds = <String, List<Friend>>{};
+    
+    for (final f in allFriends) {
+      if (f.userId != null && f.userId!.isNotEmpty) {
+        groupedByUserIds.putIfAbsent(f.userId!, () => []).add(f);
+      }
+    }
+    
+    for (final duplicates in groupedByUserIds.values) {
+      if (duplicates.length > 1) {
+        // Find best match (prefer visible)
+        final best = duplicates.firstWhere((f) => !f.isHidden, orElse: () => duplicates.first);
+        
+        // Merge grantedAccessCode if any of the matches have it
+        final mergedAccessCode = duplicates.map((f) => f.grantedAccessCode).firstWhere((code) => code != null, orElse: () => null);
+        
+        if (mergedAccessCode != null && best.grantedAccessCode != mergedAccessCode) {
+           await _friendsBox.put(best.id, best.copyWith(grantedAccessCode: mergedAccessCode));
+        }
+        
+        // Delete all other duplicates
+        for (final f in duplicates) {
+          if (f.id != best.id) {
+            await _friendsBox.delete(f.id);
+          }
+        }
+      }
+    }
+    
     _initialized = true;
   }
 

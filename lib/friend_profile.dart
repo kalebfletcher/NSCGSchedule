@@ -10,6 +10,8 @@ import 'dart:io';
 import 'dart:async';
 import 'package:nscgschedule/debug_service.dart';
 import 'package:nscgschedule/services/timetable_sync_service.dart';
+import 'package:palette_generator/palette_generator.dart';
+import 'package:nscgschedule/settings.dart';
 
 class FriendProfileScreen extends StatefulWidget {
   final String friendId;
@@ -28,10 +30,17 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
   bool _isSyncing = false;
   Timer? _refreshTimer;
   final DebugService _debug = GetIt.I<DebugService>();
+  PaletteGenerator? _paletteGenerator;
+  bool _isDynamicColorEnabled = false;
 
   @override
   void initState() {
     super.initState();
+    _initFriend();
+  }
+
+  Future<void> _initFriend() async {
+    _isDynamicColorEnabled = await settings.getDynamicFriendHeaderColor();
     _loadFriend();
   }
 
@@ -44,6 +53,11 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
   void _loadFriend() {
     setState(() => _isLoading = true);
     final friend = _friendsService.getFriend(widget.friendId);
+    
+    if (_isDynamicColorEnabled && friend?.profilePicPath != null && friend!.profilePicPath!.isNotEmpty) {
+      _extractPaletteColor(friend.profilePicPath!);
+    }
+
     _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
@@ -53,6 +67,20 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
       _friend = friend;
       _isLoading = false;
     });
+  }
+
+  Future<void> _extractPaletteColor(String path) async {
+    try {
+      final imageProvider = FileImage(File(path));
+      final generator = await PaletteGenerator.fromImageProvider(imageProvider);
+      if (mounted) {
+        setState(() {
+          _paletteGenerator = generator;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to extract palette color: $e');
+    }
   }
 
   Future<void> _syncFriendNow() async {
@@ -127,11 +155,21 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
   }
 
   Widget _buildHeader() {
+    Color backgroundColor = Theme.of(context).colorScheme.primaryContainer;
+    Color textColor = Theme.of(context).colorScheme.onPrimaryContainer;
+    Color mutedTextColor = Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.7);
+
+    if (_isDynamicColorEnabled && _paletteGenerator?.dominantColor != null) {
+      backgroundColor = _paletteGenerator!.dominantColor!.color;
+      textColor = _paletteGenerator!.dominantColor!.titleTextColor;
+      mutedTextColor = _paletteGenerator!.dominantColor!.bodyTextColor;
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
+        color: backgroundColor,
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(24),
           bottomRight: Radius.circular(24),
@@ -168,7 +206,7 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
                 _friend!.name,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  color: textColor,
                 ),
               ),
               const SizedBox(width: 8),
@@ -182,17 +220,13 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
               Icon(
                 _getPrivacyIcon(_friend!.privacyLevel),
                 size: 18,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
+                color: mutedTextColor,
               ),
               const SizedBox(width: 6),
               Text(
                 _getPrivacyLabel(_friend!.privacyLevel),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
+                  color: mutedTextColor,
                 ),
               ),
               if (_friend!.isOnlineSync) ...[
@@ -200,14 +234,14 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
                 Icon(
                   Icons.cloud_done,
                   size: 16,
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  color: textColor,
                 ),
                 const SizedBox(width: 4),
                 Text(
                   'Cloud Synced',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    color: textColor,
                   ),
                 ),
               ],
@@ -220,9 +254,7 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
                 : 'Added ${_formatShortDate(_friend!.addedAt)}',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(
-                context,
-              ).colorScheme.onPrimaryContainer.withValues(alpha: 0.6),
+              color: mutedTextColor,
             ),
           ),
         ],

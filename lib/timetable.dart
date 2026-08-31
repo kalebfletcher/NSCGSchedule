@@ -695,92 +695,163 @@ class _TimetableScreenState extends State<TimetableScreen> {
                       final isHighlighted =
                           isTargetDay && _highlightLessonIndex == index;
 
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        decoration: isHighlighted
-                            ? BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Theme.of(context).colorScheme.primary
-                                        .withValues(alpha: 0.4),
-                                    blurRadius: 8,
-                                    spreadRadius: 2,
-                                  ),
-                                ],
-                              )
-                            : null,
-                        child: Card(
-                          margin: const EdgeInsets.symmetric(
-                            vertical: 4,
-                            horizontal: 8,
+                      final sideColor = isHighlighted
+                          ? Theme.of(context).colorScheme.secondary
+                          : Theme.of(context).colorScheme.primary;
+
+                      return Card(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(
+                            color: isHighlighted
+                                ? Theme.of(context).colorScheme.secondary.withValues(alpha: 0.8)
+                                : Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                            width: isHighlighted ? 2 : 1,
                           ),
-                          color: isHighlighted
-                              ? Theme.of(context).colorScheme.primaryContainer
-                              : null,
-                          child: ListTile(
-                            title: Text(
-                              lesson.name,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: isHighlighted
-                                    ? Theme.of(
-                                        context,
-                                      ).colorScheme.onPrimaryContainer
-                                    : null,
+                        ),
+                        margin: const EdgeInsets.only(bottom: 12, left: 8, right: 8),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isHighlighted
+                                  ? Theme.of(context).colorScheme.secondaryContainer.withValues(alpha: 0.3)
+                                  : null,
+                              border: Border(
+                                left: BorderSide(
+                                  color: sideColor,
+                                  width: 4,
+                                ),
                               ),
                             ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${lesson.startTime} - ${lesson.endTime}${_nextLessonId == '${lesson.name}-${lesson.startTime}' ? _timeRemaining : ''}',
-                                  style: isHighlighted
-                                      ? TextStyle(
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimaryContainer,
-                                        )
-                                      : null,
+                            child: InkWell(
+                              onTap: kInsertRoomNumbers
+                                  ? () {
+                                      _editRoom(dayIndex, index);
+                                    }
+                                  : null,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            lesson.name,
+                                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                  color: isHighlighted
+                                                      ? Theme.of(context).colorScheme.onSecondaryContainer
+                                                      : null,
+                                                ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.schedule,
+                                          size: 16,
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            '${lesson.startTime} - ${lesson.endTime}${_nextLessonId == '${lesson.name}-${lesson.startTime}' ? _timeRemaining : ''}',
+                                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                ),
+                                          ),
+                                        ),
+                                        if (lesson.room.isNotEmpty) ...[
+                                          Icon(
+                                            Icons.room,
+                                            size: 16,
+                                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            lesson.room,
+                                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                          ),
+                                        ]
+                                      ],
+                                    ),
+                                    if (lesson.teachers.isNotEmpty || lesson.course.isNotEmpty || lesson.group.isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: Wrap(
+                                          alignment: WrapAlignment.spaceBetween,
+                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          spacing: 16,
+                                          runSpacing: 8,
+                                          children: [
+                                            if (lesson.teachers.isNotEmpty)
+                                              Text.rich(
+                                                TextSpan(
+                                                  children: [
+                                                    WidgetSpan(
+                                                      alignment: PlaceholderAlignment.middle,
+                                                      child: Padding(
+                                                        padding: const EdgeInsets.only(right: 6.0),
+                                                        child: Icon(
+                                                          Icons.person,
+                                                          size: 16,
+                                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    TextSpan(
+                                                      text: lesson.teachers.join(", "),
+                                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                          ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            if (lesson.course.isNotEmpty || lesson.group.isNotEmpty)
+                                              Text.rich(
+                                                TextSpan(
+                                                  children: [
+                                                    WidgetSpan(
+                                                      alignment: PlaceholderAlignment.middle,
+                                                      child: Padding(
+                                                        padding: const EdgeInsets.only(right: 6.0),
+                                                        child: Icon(
+                                                          Icons.class_,
+                                                          size: 16,
+                                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    TextSpan(
+                                                      text: '${lesson.course} (${lesson.group})',
+                                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                          ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
-                                Text(
-                                  'Room: ${lesson.room}',
-                                  style: isHighlighted
-                                      ? TextStyle(
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimaryContainer,
-                                        )
-                                      : null,
-                                ),
-                                Text(
-                                  'Teachers: ${lesson.teachers.join(", ")}',
-                                  style: isHighlighted
-                                      ? TextStyle(
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimaryContainer,
-                                        )
-                                      : null,
-                                ),
-                                Text(
-                                  'Course: ${lesson.course} (${lesson.group})',
-                                  style: isHighlighted
-                                      ? TextStyle(
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimaryContainer,
-                                        )
-                                      : null,
-                                ),
-                              ],
+                              ),
                             ),
-                            isThreeLine: true,
-                            onTap: kInsertRoomNumbers
-                                ? () {
-                                    _editRoom(dayIndex, index);
-                                  }
-                                : null,
                           ),
                         ),
                       );

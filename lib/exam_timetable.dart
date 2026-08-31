@@ -553,52 +553,114 @@ class _ExamTimetableScreenState extends State<ExamTimetableScreen> {
                       ),
                     ],
                     Card(
-                      margin: const EdgeInsets.symmetric(
-                        vertical: 4,
-                        horizontal: 8,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        ),
                       ),
-                      child: ListTile(
-                        leading: Container(
-                          width: 48,
-                          height: 48,
+                      margin: const EdgeInsets.only(bottom: 12, left: 8, right: 8),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
                           decoration: BoxDecoration(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Center(
-                            child: Text(
-                              exam.startTime,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onPrimaryContainer,
+                            border: Border(
+                              left: BorderSide(
+                                color: Theme.of(context).colorScheme.primary,
+                                width: 4,
                               ),
-                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          child: InkWell(
+                            onTap: () {
+                              _showExamDetails(context, exam);
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          exam.subjectDescription,
+                                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '${exam.boardCode} - ${exam.paper}',
+                                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.schedule,
+                                              size: 16,
+                                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              '${exam.startTime} - ${exam.finishTime}',
+                                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          children: [
+                                            if (exam.examRoom.isNotEmpty) ...[
+                                              Icon(
+                                                Icons.room,
+                                                size: 16,
+                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                exam.examRoom,
+                                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                            ],
+                                            if (exam.seatNumber.isNotEmpty && exam.seatNumber.toLowerCase() != 'tba' && exam.seatNumber.toLowerCase() != 'tbc') ...[
+                                              Icon(
+                                                Icons.event_seat,
+                                                size: 16,
+                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                'Seat ${exam.seatNumber}',
+                                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                    ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.chevron_right,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                        title: Text(
-                          exam.subjectDescription,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Text('${exam.boardCode} - ${exam.paper}'),
-                            Text('${exam.startTime} - ${exam.finishTime}'),
-                            Text('Room: ${exam.examRoom}'),
-                            Text('Seat: ${exam.seatNumber}'),
-                          ],
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () {
-                          _showExamDetails(context, exam);
-                        },
                       ),
                     ),
                   ],

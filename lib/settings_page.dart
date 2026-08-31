@@ -21,6 +21,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _isDarkMode = false;
   bool _useSystemTheme = true;
   bool _useMaterialYou = true;
+  bool _dynamicFriendHeaderColor = false;
   bool _notificationsEnabled = true;
   bool _notifyOnStartTime = true;
   bool _notifyMinutesBeforeEnabled = true;
@@ -79,6 +80,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _useSystemTheme = await settings.getUseSystemTheme();
     _isDarkMode = await settings.getDarkMode();
     _useMaterialYou = await settings.getUseMaterialYou();
+    _dynamicFriendHeaderColor = await settings.getDynamicFriendHeaderColor();
     _notificationsEnabled = await settings.getNotificationsEnabled();
     _notifyOnStartTime = await settings.getNotifyOnStartTime();
     _notifyMinutesBeforeEnabled = await settings
@@ -230,6 +232,20 @@ class _SettingsPageState extends State<SettingsPage> {
                             ),
                           ),
                         ),
+                      ),
+                      SwitchListTile(
+                        title: const Text('Dynamic Friend Colors'),
+                        subtitle: const Text('Color friend profiles based on their picture'),
+                        value: _dynamicFriendHeaderColor,
+                        onChanged: (value) async {
+                          await settings.setDynamicFriendHeaderColor(value);
+                          if (mounted) {
+                            setState(() {
+                              _dynamicFriendHeaderColor = value;
+                            });
+                          }
+                        },
+                        secondary: const Icon(Icons.format_paint),
                       ),
                     ],
                   );

@@ -542,14 +542,21 @@ class TimetableSyncService {
     // Find existing friend early so we can strip credentials if 410
     final friendsService = GetIt.I<FriendsService>();
     final existingFriends = friendsService.getAllFriends(includeHidden: true);
-    Friend? existing;
+    final matches = <Friend>[];
     for (final f in existingFriends) {
       if (f.syncFileId == fileId ||
           (userId != null && userId.isNotEmpty && f.userId == userId)) {
-        existing = f;
-        break;
+        matches.add(f);
       }
     }
+    
+    Friend? existing;
+    if (matches.isNotEmpty) {
+      existing = matches.firstWhere((m) => !m.isHidden, orElse: () => matches.first);
+    }
+    
+    // Merge grantedAccessCode if any of the matches have it
+    final mergedAccessCode = matches.map((m) => m.grantedAccessCode).firstWhere((code) => code != null, orElse: () => null);
 
     final accessResp = await _dio.post(
       '$serverUrl/api/v1/timetable/$fileId/access',
@@ -647,10 +654,18 @@ class TimetableSyncService {
       syncServerUrl: serverUrl,
       lastSyncedAt: DateTime.now(),
       isHidden: false, // Ensure they are visible once a real QR is scanned
-      grantedAccessCode: existing?.grantedAccessCode,
+      grantedAccessCode: mergedAccessCode ?? existing?.grantedAccessCode,
     );
 
     await friendsService.saveFriend(friend);
+    
+    // Clean up duplicates
+    for (final m in matches) {
+      if (m.id != friend.id) {
+        await friendsService.deleteFriend(m.id);
+      }
+    }
+    
     return friend;
   }
 
