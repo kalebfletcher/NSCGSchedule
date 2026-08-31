@@ -674,6 +674,13 @@ class _ScanQRScreenState extends State<ScanQRScreen> {
           id: existingByUserId.id,
           addedAt: DateTime.now(),
           profilePicPath: existingByUserId.profilePicPath,
+          grantedAccessCode: existingByUserId.grantedAccessCode,
+          syncAccessCode: existingByUserId.syncAccessCode,
+          syncDecryptionKey: existingByUserId.syncDecryptionKey,
+          syncFileId: existingByUserId.syncFileId,
+          syncServerUrl: existingByUserId.syncServerUrl,
+          isOnlineSync: existingByUserId.isOnlineSync,
+          lastSyncedAt: existingByUserId.lastSyncedAt,
         );
         await _friendsService.saveFriend(replaced);
         if (mounted) {
@@ -718,6 +725,13 @@ class _ScanQRScreenState extends State<ScanQRScreen> {
           id: existing.id,
           addedAt: DateTime.now(),
           profilePicPath: existing.profilePicPath,
+          grantedAccessCode: existing.grantedAccessCode,
+          syncAccessCode: existing.syncAccessCode,
+          syncDecryptionKey: existing.syncDecryptionKey,
+          syncFileId: existing.syncFileId,
+          syncServerUrl: existing.syncServerUrl,
+          isOnlineSync: existing.isOnlineSync,
+          lastSyncedAt: existing.lastSyncedAt,
         );
         friendToSave = preserved;
       }

@@ -165,7 +165,7 @@ class _TimetableAccessListScreenState
 
   Widget _buildActiveCard(ActiveAccessEntry entry) {
     final friend = _getFriendForAccessCode(entry.accessCode);
-    final displayName = friend?.name ?? (entry.hasEncryptedName ? '(decrypting…)' : 'Unknown device');
+    final displayName = friend?.name ?? entry.name ?? (entry.hasEncryptedName ? '(decrypting…)' : 'Unknown device');
     final addedDate = '${entry.createdAt.day}/${entry.createdAt.month}/${entry.createdAt.year}';
 
     return Card(
