@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nscgschedule/friends_service.dart';
@@ -589,7 +589,7 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
           ),
           FilledButton(
             onPressed: () async {
-              await _friendsService.deleteFriend(friend.id);
+              await _friendsService.removeFriendButKeepAccessProfile(friend.id);
               _loadFriends();
               if (context.mounted) Navigator.pop(context);
             },

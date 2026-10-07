@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nscgschedule/main.dart';
 import 'package:nscgschedule/login.dart';
 import 'package:nscgschedule/settings_page.dart';

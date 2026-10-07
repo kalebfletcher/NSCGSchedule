@@ -422,6 +422,96 @@ class NSCGRequests {
 
       if (response.statusCode == 200 && response.data != null) {
         ExamTimetable examTimetable = ExamTimetable.fromHtml(response.data!);
+
+        // November resits are also exposed on the student homepage, even when
+        // they are absent from /exams/. Import those rows into the same list.
+        try {
+          final homeResponse = await _dio.get<String>(
+            '/',
+            options: Options(
+              headers: {'Cookie': cookieHeader, 'Accept': 'text/html'},
+              responseType: ResponseType.plain,
+            ),
+          );
+          if (homeResponse.statusCode == 200 && homeResponse.data != null) {
+            final homeExams = ExamTimetable.fromHtml(homeResponse.data!).exams;
+            String normalize(String value) => value
+                .trim()
+                .toLowerCase()
+                .replaceAll(RegExp(r'\s+'), ' ');
+            String dateKey(Exam exam) {
+              final date = exam.parsedDate;
+              return date == null
+                  ? normalize(exam.date).replaceAll('/', '-')
+                  : '${date.year}-${date.month}-${date.day}';
+            }
+            String normalizeStartTime(String value) {
+              final normalized = normalize(value);
+              final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(normalized);
+              if (match == null) return normalized;
+              return '${int.parse(match.group(1)!)}:${match.group(2)}';
+            }
+            bool sameSlot(Exam a, Exam b) =>
+                dateKey(a) == dateKey(b) &&
+                normalizeStartTime(a.startTime) ==
+                    normalizeStartTime(b.startTime);
+            // On the compact homepage the fields are explicitly Subject and
+            // Exam. The detailed page can put that exam label in
+            // subjectDescription instead. Use a matching homepage row only to
+            // correct those labels; always retain the full exam record.
+            final fullExams = examTimetable.exams.map((detailed) {
+              final homepageMatch = homeExams.where((candidate) =>
+                  sameSlot(detailed, candidate) &&
+                  (normalize(detailed.subjectDescription) ==
+                          normalize(candidate.paper) ||
+                      (normalize(detailed.subjectDescription) ==
+                              normalize(candidate.subjectDescription) &&
+                          normalize(detailed.paper) ==
+                              normalize(candidate.paper))));
+              if (homepageMatch.isEmpty) return detailed;
+              final labels = homepageMatch.first;
+              return Exam(
+                date: detailed.date,
+                boardCode: detailed.boardCode,
+                paper: labels.paper,
+                startTime: detailed.startTime,
+                finishTime: detailed.finishTime,
+                subjectDescription: labels.subjectDescription,
+                preRoom: detailed.preRoom,
+                examRoom: detailed.examRoom,
+                seatNumber: detailed.seatNumber,
+                additional: detailed.additional,
+              );
+            });
+
+            // Keep homepage-only exams, but discard its sparse row whenever
+            // the same paper and slot already have a full record.
+            final unmatchedHomepageExams = homeExams.where((homepage) {
+              return !fullExams.any((full) =>
+                  sameSlot(full, homepage) &&
+                  (normalize(full.paper) == normalize(homepage.paper) ||
+                      normalize(full.subjectDescription) ==
+                          normalize(homepage.paper)));
+            });
+            final combined = [...fullExams, ...unmatchedHomepageExams];
+            combined.sort((a, b) {
+              final aDate = a.parsedDate;
+              final bDate = b.parsedDate;
+              if (aDate != null && bDate != null) {
+                final dateOrder = aDate.compareTo(bDate);
+                if (dateOrder != 0) return dateOrder;
+              }
+              return a.startTime.compareTo(b.startTime);
+            });
+            examTimetable = ExamTimetable(
+              hasExams: combined.isNotEmpty,
+              studentInfo: examTimetable.studentInfo,
+              exams: combined,
+              warningMessage: examTimetable.warningMessage,
+            );
+          }
+        } catch (_) {}
+
         await settings.setMap('examTimetable', examTimetable.toJson());
         await settings.setKey(
           'examTimetableUpdated',

@@ -83,12 +83,12 @@ class ExamTimetable {
 
     // Extract exams
     final exams = <Exam>[];
-    final examTable = document.querySelector('table.exams');
-    if (examTable != null) {
-      final rows = examTable.querySelectorAll('tr');
-      for (var i = 1; i < rows.length; i++) {
-        // Skip header row
-        final cells = rows[i].querySelectorAll('td');
+    // The main portal homepage also publishes November resits in a compact
+    // four-column table, separately from the full /exams/ timetable.
+    final examTables = document.querySelectorAll('table.exams, table.examtbl');
+    for (final examTable in examTables) {
+      for (final row in examTable.querySelectorAll('tr')) {
+        final cells = row.querySelectorAll('td');
         if (cells.length >= 10) {
           exams.add(
             Exam(
@@ -104,6 +104,20 @@ class ExamTimetable {
               additional: cells[9].text.trim(),
             ),
           );
+        } else if (cells.length >= 4) {
+          final date = cells[2].text.trim().replaceAll('/', '-');
+          exams.add(Exam(
+            date: date,
+            boardCode: '',
+            paper: cells[1].text.trim(),
+            startTime: cells[3].text.trim(),
+            finishTime: '',
+            subjectDescription: cells[0].text.trim(),
+            preRoom: '',
+            examRoom: '',
+            seatNumber: '',
+            additional: '',
+          ));
         }
       }
     }
@@ -210,8 +224,8 @@ class Exam {
 
   DateTime? get parsedDate {
     try {
-      // Parse date format: "04-11-2025"
-      final parts = date.split('-');
+      // Accept dates from both portal formats: 04-11-2025 and 04/11/2025.
+      final parts = date.split(RegExp(r'[-/]'));
       if (parts.length == 3) {
         return DateTime(
           int.parse(parts[2]), // year

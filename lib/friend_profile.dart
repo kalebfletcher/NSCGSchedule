@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nscgschedule/friends_service.dart';
@@ -791,7 +791,7 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
           ),
           FilledButton(
             onPressed: () async {
-              await _friendsService.deleteFriend(_friend!.id);
+              await _friendsService.removeFriendButKeepAccessProfile(_friend!.id);
               if (context.mounted) {
                 Navigator.pop(context); // Close dialog
                 context.pop(); // Go back to friends list

@@ -476,4 +476,3 @@ int? parseTimeToMinutes(String timeString) {
   } catch (_) {}
   return null;
 }
-

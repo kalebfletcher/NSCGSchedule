@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nscgschedule/requests.dart';
@@ -34,14 +34,14 @@ class _LoginState extends State<Login> {
             mediaPlaybackRequiresUserGesture: false,
             mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
             cacheEnabled: true,
-            clearCache: false,
             useShouldOverrideUrlLoading: false,
           ),
           onReceivedServerTrustAuthRequest: (controller, challenge) async {
             final host = challenge.protectionSpace.host;
             debugPrint('SSL trust challenge host: $host');
 
-            final allowed = host == 'nulc.ac.uk' || host.endsWith('.nulc.ac.uk');
+            final allowed =
+                host == 'nulc.ac.uk' || host.endsWith('.nulc.ac.uk');
 
             return ServerTrustAuthResponse(
               action: allowed

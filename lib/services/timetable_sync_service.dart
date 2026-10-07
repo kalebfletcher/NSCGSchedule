@@ -545,7 +545,8 @@ class TimetableSyncService {
     final matches = <Friend>[];
     for (final f in existingFriends) {
       if (f.syncFileId == fileId ||
-          (userId != null && userId.isNotEmpty && f.userId == userId)) {
+          (userId != null && userId.isNotEmpty &&
+              f.userId?.trim().toLowerCase() == userId.trim().toLowerCase())) {
         matches.add(f);
       }
     }
@@ -556,7 +557,13 @@ class TimetableSyncService {
     }
     
     // Merge grantedAccessCode if any of the matches have it
-    final mergedAccessCode = matches.map((m) => m.grantedAccessCode).firstWhere((code) => code != null, orElse: () => null);
+    final profilesWithAccessCode = matches
+        .where((m) => m.grantedAccessCode != null)
+        .toList()
+      ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+    final mergedAccessCode = profilesWithAccessCode.isEmpty
+        ? null
+        : profilesWithAccessCode.first.grantedAccessCode;
 
     final accessResp = await _dio.post(
       '$serverUrl/api/v1/timetable/$fileId/access',
@@ -566,7 +573,7 @@ class TimetableSyncService {
     if (accessResp.statusCode == 410 ||
         accessResp.statusCode == 401 ||
         accessResp.statusCode == 403) {
-      if (existing != null) await friendsService.deleteFriend(existing.id);
+      if (existing != null) await friendsService.removeFriendButKeepAccessProfile(existing.id);
       final data = accessResp.data is Map<String, dynamic>
           ? accessResp.data as Map<String, dynamic>
           : null;
@@ -607,7 +614,7 @@ class TimetableSyncService {
     if (fetchResp.statusCode == 410 ||
         fetchResp.statusCode == 401 ||
         fetchResp.statusCode == 403) {
-      if (existing != null) await friendsService.deleteFriend(existing.id);
+      if (existing != null) await friendsService.removeFriendButKeepAccessProfile(existing.id);
       throw InvalidInviteKeyException(
         ownerName: name.isNotEmpty ? name : 'Friend',
         message: 'This invite code is invalid or has been invalidated by its owner.',
@@ -692,7 +699,7 @@ class TimetableSyncService {
 
       if (response.statusCode == 410) {
         // Access revoked or device blocked — remove the friend
-        await GetIt.I<FriendsService>().deleteFriend(friend.id);
+        await GetIt.I<FriendsService>().removeFriendButKeepAccessProfile(friend.id);
         return false;
       }
 
@@ -781,7 +788,7 @@ class TimetableSyncService {
 
             // 410 Gone: access revoked or device blocked
             if (res['gone'] == true) {
-              await friendsService.deleteFriend(friend.id);
+              await friendsService.removeFriendButKeepAccessProfile(friend.id);
               continue;
             }
 
@@ -873,28 +880,43 @@ class TimetableSyncService {
       } catch (_) {}
     }
 
-    // Clear mailbox from server after successfully reading
+    // Persist names and access-code mappings before clearing the mailbox. If
+    // local storage fails, the encrypted entries remain available to retry.
+    final mailboxFullyDecrypted = result.length == entries.length;
     if (result.isNotEmpty) {
       try {
-        await _dio.delete(
-          '$serverUrl/api/v1/timetable/$fileId/mailbox',
-          options: Options(headers: {'x-access-code': ownerCode}),
-        );
-        
         // Save to local friends so they aren't lost
         final friendsService = GetIt.I<FriendsService>();
-        final friends = friendsService.getAllFriends(includeHidden: true);
+        result.sort((a, b) => a.createdAt.compareTo(b.createdAt));
         
         for (final entry in result) {
+          final friends = friendsService.getAllFriends(includeHidden: true);
           Friend? match;
           if (entry.userId != null) {
-            match = friends.where((f) => f.userId == entry.userId).firstOrNull;
+            match = friends.where((f) => f.userId?.trim().toLowerCase() == entry.userId?.trim().toLowerCase()).firstOrNull;
           }
           match ??= friends.where((f) => f.grantedAccessCode == entry.accessCode || f.syncAccessCode == entry.accessCode).firstOrNull;
           
           if (match != null) {
             if (match.grantedAccessCode != entry.accessCode) {
-              await friendsService.saveFriend(match.copyWith(grantedAccessCode: entry.accessCode));
+              final sameUser = entry.userId != null &&
+                  entry.userId!.trim().isNotEmpty &&
+                  match.userId?.trim().toLowerCase() ==
+                      entry.userId!.trim().toLowerCase();
+              final oldAccessCode = match.grantedAccessCode;
+              if (sameUser && oldAccessCode != null && oldAccessCode.isNotEmpty) {
+                try {
+                  await removeDeviceAccess(oldAccessCode);
+                } on DioException catch (e) {
+                  // A code already removed from the active list needs no
+                  // further action; keep the mailbox entry for other errors.
+                  if (e.response?.statusCode != 404) rethrow;
+                }
+              }
+              await friendsService.saveFriend(match.copyWith(
+                grantedAccessCode: entry.accessCode,
+                addedAt: DateTime.now(),
+              ));
             }
           } else {
             final stub = Friend(
@@ -910,6 +932,13 @@ class TimetableSyncService {
             );
             await friendsService.saveFriend(stub);
           }
+        }
+
+        if (mailboxFullyDecrypted) {
+          await _dio.delete(
+            '$serverUrl/api/v1/timetable/$fileId/mailbox',
+            options: Options(headers: {'x-access-code': ownerCode}),
+          );
         }
       } catch (_) {}
     }

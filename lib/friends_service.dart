@@ -16,29 +16,50 @@ class FriendsService {
     if (_initialized) return;
 
     _friendsBox = await Hive.openBox<Friend>(_friendsBoxName);
-    
+
     // Automatic cleanup of duplicate friends by userId
     final allFriends = _friendsBox.values.toList();
     final groupedByUserIds = <String, List<Friend>>{};
-    
+
     for (final f in allFriends) {
-      if (f.userId != null && f.userId!.isNotEmpty) {
-        groupedByUserIds.putIfAbsent(f.userId!, () => []).add(f);
+      if (f.userId != null && f.userId!.trim().isNotEmpty) {
+        final normalizedId = f.userId!.trim().toLowerCase();
+        groupedByUserIds.putIfAbsent(normalizedId, () => []).add(f);
       }
     }
-    
+
     for (final duplicates in groupedByUserIds.values) {
       if (duplicates.length > 1) {
         // Find best match (prefer visible)
         final best = duplicates.firstWhere((f) => !f.isHidden, orElse: () => duplicates.first);
-        
-        // Merge grantedAccessCode if any of the matches have it
-        final mergedAccessCode = duplicates.map((f) => f.grantedAccessCode).firstWhere((code) => code != null, orElse: () => null);
-        
-        if (mergedAccessCode != null && best.grantedAccessCode != mergedAccessCode) {
-           await _friendsBox.put(best.id, best.copyWith(grantedAccessCode: mergedAccessCode));
+        final newestWithAccessCode = duplicates
+            .where((f) => f.grantedAccessCode != null)
+            .toList()
+          ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+
+        var merged = best;
+        for (final f in duplicates) {
+          if (f.id == best.id) continue;
+
+          merged = merged.copyWith(
+            profilePicPath: merged.profilePicPath ?? f.profilePicPath,
+            syncAccessCode: merged.syncAccessCode ?? f.syncAccessCode,
+            syncDecryptionKey: merged.syncDecryptionKey ?? f.syncDecryptionKey,
+            syncFileId: merged.syncFileId ?? f.syncFileId,
+            syncServerUrl: merged.syncServerUrl ?? f.syncServerUrl,
+            lastSyncedAt: merged.lastSyncedAt ?? f.lastSyncedAt,
+            isOnlineSync: merged.isOnlineSync || f.isOnlineSync,
+          );
         }
-        
+
+        if (newestWithAccessCode.isNotEmpty) {
+          merged = merged.copyWith(
+            grantedAccessCode: newestWithAccessCode.first.grantedAccessCode,
+          );
+        }
+
+        await _friendsBox.put(merged.id, merged);
+
         // Delete all other duplicates
         for (final f in duplicates) {
           if (f.id != best.id) {
@@ -47,7 +68,7 @@ class FriendsService {
         }
       }
     }
-    
+
     _initialized = true;
   }
 
@@ -71,6 +92,25 @@ class FriendsService {
   /// Delete a friend
   Future<void> deleteFriend(String id) async {
     await _friendsBox.delete(id);
+  }
+
+  /// Remove shared timetable and sync credentials while retaining the local
+  /// identity used to label this person's device in Access Management.
+  Future<void> removeFriendButKeepAccessProfile(String id) async {
+    final friend = _friendsBox.get(id);
+    if (friend == null) return;
+    await _friendsBox.put(id, friend.copyWith(
+      privacyLevel: PrivacyLevel.freeTimeOnly,
+      timetable: FriendTimetable(days: []),
+      profilePicPath: null,
+      isOnlineSync: false,
+      syncFileId: null,
+      syncAccessCode: null,
+      syncDecryptionKey: null,
+      syncServerUrl: null,
+      lastSyncedAt: null,
+      isHidden: true,
+    ));
   }
 
   /// Generate QR code data from user's timetable with selected privacy level

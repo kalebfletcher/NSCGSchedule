@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -219,7 +219,6 @@ class _ExamTimetableScreenState extends State<ExamTimetableScreen> {
                 mediaPlaybackRequiresUserGesture: false,
                 mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
                 cacheEnabled: true,
-                clearCache: false,
                 useShouldOverrideUrlLoading: false,
               ),
               onReceivedServerTrustAuthRequest: (controller, challenge) async {
@@ -557,10 +556,16 @@ class _ExamTimetableScreenState extends State<ExamTimetableScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                         side: BorderSide(
-                          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.outlineVariant.withValues(alpha: 0.5),
                         ),
                       ),
-                      margin: const EdgeInsets.only(bottom: 12, left: 8, right: 8),
+                      margin: const EdgeInsets.only(
+                        bottom: 12,
+                        left: 8,
+                        right: 8,
+                      ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
                         child: Container(
@@ -582,19 +587,28 @@ class _ExamTimetableScreenState extends State<ExamTimetableScreen> {
                                 children: [
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           exam.subjectDescription,
-                                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium
+                                              ?.copyWith(
                                                 fontWeight: FontWeight.w700,
                                               ),
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
                                           '${exam.boardCode} - ${exam.paper}',
-                                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium
+                                              ?.copyWith(
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurfaceVariant,
                                               ),
                                         ),
                                         const SizedBox(height: 8),
@@ -603,13 +617,20 @@ class _ExamTimetableScreenState extends State<ExamTimetableScreen> {
                                             Icon(
                                               Icons.schedule,
                                               size: 16,
-                                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.onSurfaceVariant,
                                             ),
                                             const SizedBox(width: 6),
                                             Text(
                                               '${exam.startTime} - ${exam.finishTime}',
-                                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.copyWith(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurfaceVariant,
                                                   ),
                                             ),
                                           ],
@@ -621,29 +642,48 @@ class _ExamTimetableScreenState extends State<ExamTimetableScreen> {
                                               Icon(
                                                 Icons.room,
                                                 size: 16,
-                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurfaceVariant,
                                               ),
                                               const SizedBox(width: 6),
                                               Text(
                                                 exam.examRoom,
-                                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                                      fontWeight: FontWeight.w500,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodyMedium
+                                                    ?.copyWith(
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurfaceVariant,
+                                                      fontWeight:
+                                                          FontWeight.w500,
                                                     ),
                                               ),
                                               const SizedBox(width: 16),
                                             ],
-                                            if (exam.seatNumber.isNotEmpty && exam.seatNumber.toLowerCase() != 'tba' && exam.seatNumber.toLowerCase() != 'tbc') ...[
+                                            if (exam.seatNumber.isNotEmpty &&
+                                                exam.seatNumber.toLowerCase() !=
+                                                    'tba' &&
+                                                exam.seatNumber.toLowerCase() !=
+                                                    'tbc') ...[
                                               Icon(
                                                 Icons.event_seat,
                                                 size: 16,
-                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurfaceVariant,
                                               ),
                                               const SizedBox(width: 6),
                                               Text(
                                                 'Seat ${exam.seatNumber}',
-                                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodyMedium
+                                                    ?.copyWith(
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurfaceVariant,
                                                     ),
                                               ),
                                             ],
@@ -654,7 +694,10 @@ class _ExamTimetableScreenState extends State<ExamTimetableScreen> {
                                   ),
                                   Icon(
                                     Icons.chevron_right,
-                                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant
+                                        .withValues(alpha: 0.5),
                                   ),
                                 ],
                               ),

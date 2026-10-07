@@ -1,6 +1,10 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/foundation.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import 'dart:async';
 
 enum NotificationType {
@@ -10,7 +14,19 @@ enum NotificationType {
   examMinutesBefore,
 }
 
+class ScheduledNotificationInfo {
+  final DateTime scheduledAt;
+  final bool repeatsWeekly;
+
+  const ScheduledNotificationInfo({
+    required this.scheduledAt,
+    required this.repeatsWeekly,
+  });
+}
+
 class NotificationService {
+  static const String _scheduledNotificationInfoKey =
+      'scheduled_notification_info';
   static final NotificationService _instance = NotificationService._internal();
 
   factory NotificationService() => _instance;
@@ -18,6 +34,7 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
+  bool _localTimezoneReady = false;
 
   // Stream to request rescheduling from anywhere (e.g., Settings page)
   final StreamController<void> _rescheduleController =
@@ -63,6 +80,20 @@ class NotificationService {
         );
 
     tz.initializeTimeZones();
+    try {
+      final localTimezone = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(localTimezone.identifier));
+      _localTimezoneReady = true;
+    } catch (e) {
+      debugPrint('Could not initialize the device timezone for notifications: $e');
+      // Keep notifications available if the platform timezone plugin is missing
+      // (for example, when a newly added native plugin has not been rebuilt).
+      // timezone's initialized default is UTC, so one-off alarms retain their
+      // intended instant. Weekly repeats may need a reschedule after timezone
+      // initialization succeeds on the next full app restart.
+      tz.setLocalLocation(tz.UTC);
+      _localTimezoneReady = true;
+    }
 
     await flutterLocalNotificationsPlugin.initialize(
       settings: initializationSettings,
@@ -104,6 +135,12 @@ class NotificationService {
     NotificationType type = NotificationType.lessonStart,
     String? payload,
   }) async {
+    if (!_localTimezoneReady) {
+      // init normally sets this, but do not let a transient platform failure
+      // prevent the notification plugin from accepting scheduled alarms.
+      tz.setLocalLocation(tz.UTC);
+      _localTimezoneReady = true;
+    }
     final isStartType =
         type == NotificationType.lessonStart ||
         type == NotificationType.examStart;
@@ -143,15 +180,67 @@ class NotificationService {
           ? DateTimeComponents.dayOfWeekAndTime
           : null,
     );
+
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final raw = preferences.getString(_scheduledNotificationInfoKey);
+      final records = raw == null
+          ? <String, dynamic>{}
+          : jsonDecode(raw) as Map<String, dynamic>;
+      records['$id'] = {
+        'scheduledAt': scheduledTime.toIso8601String(),
+        'repeatsWeekly': repeatWeekly,
+      };
+      await preferences.setString(
+        _scheduledNotificationInfoKey,
+        jsonEncode(records),
+      );
+    } catch (e) {
+      debugPrint('Could not save notification schedule details: $e');
+    }
   }
 
   Future<void> cancelAllNotifications() async {
     await flutterLocalNotificationsPlugin.cancelAll();
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.remove(_scheduledNotificationInfoKey);
+    } catch (e) {
+      debugPrint('Could not clear notification schedule details: $e');
+    }
   }
 
   // Debug helpers
   Future<List<PendingNotificationRequest>> getPendingNotifications() async {
     return await flutterLocalNotificationsPlugin.pendingNotificationRequests();
+  }
+
+  Future<Map<int, ScheduledNotificationInfo>>
+  getPendingNotificationScheduleInfo() async {
+    final preferences = await SharedPreferences.getInstance();
+    final raw = preferences.getString(_scheduledNotificationInfoKey);
+    if (raw == null) return {};
+
+    try {
+      final records = jsonDecode(raw) as Map<String, dynamic>;
+      final result = <int, ScheduledNotificationInfo>{};
+      for (final entry in records.entries) {
+        final id = int.tryParse(entry.key);
+        final value = entry.value;
+        if (id == null || value is! Map) continue;
+        final scheduledAt = DateTime.tryParse(
+          value['scheduledAt'] as String? ?? '',
+        );
+        if (scheduledAt == null) continue;
+        result[id] = ScheduledNotificationInfo(
+          scheduledAt: scheduledAt,
+          repeatsWeekly: value['repeatsWeekly'] as bool? ?? false,
+        );
+      }
+      return result;
+    } catch (_) {
+      return {};
+    }
   }
 
   Future<void> scheduleTestNotification({int minutesFromNow = 1}) async {

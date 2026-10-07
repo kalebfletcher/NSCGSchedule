@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -667,14 +667,20 @@ class _ScanQRScreenState extends State<ScanQRScreen> {
     if (friendToSave.userId != null && friendToSave.userId!.isNotEmpty) {
       final matches = _friendsService
           .getAllFriends(includeHidden: true)
-          .where((f) => f.userId != null && f.userId == friendToSave.userId)
+          .where((f) => f.userId != null && f.userId!.trim().toLowerCase() == friendToSave.userId!.trim().toLowerCase())
           .toList();
       if (matches.isNotEmpty) {
         // Find the best match to keep (prefer visible, then first)
         final existingByUserId = matches.firstWhere((m) => !m.isHidden, orElse: () => matches.first);
         
         // Merge grantedAccessCode if any of the matches have it
-        final mergedAccessCode = matches.map((m) => m.grantedAccessCode).firstWhere((code) => code != null, orElse: () => null);
+        final profilesWithAccessCode = matches
+            .where((m) => m.grantedAccessCode != null)
+            .toList()
+          ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+        final mergedAccessCode = profilesWithAccessCode.isEmpty
+            ? null
+            : profilesWithAccessCode.first.grantedAccessCode;
 
         final replaced = friendToSave.copyWith(
           id: existingByUserId.id,

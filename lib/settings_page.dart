@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nscgschedule/requests.dart';
 import 'package:nscgschedule/settings.dart';
@@ -9,6 +9,7 @@ import 'package:nscgschedule/badges_service.dart';
 import 'package:nscgschedule/services/timetable_sync_service.dart';
 import 'package:nscgschedule/debug_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:intl/intl.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -699,6 +700,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   onTap: () async {
                     final ns = GetIt.I<NotificationService>();
                     final pending = await ns.getPendingNotifications();
+                    final scheduleInfo =
+                        await ns.getPendingNotificationScheduleInfo();
                     if (!context.mounted) return;
                     showDialog(
                       context: context,
@@ -710,16 +713,20 @@ class _SettingsPageState extends State<SettingsPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: pending
-                                  .map(
-                                    (p) => Padding(
+                                  .map((p) {
+                                    final info = scheduleInfo[p.id];
+                                    final scheduledText = info == null
+                                        ? 'Scheduled time unavailable'
+                                        : 'Scheduled: ${DateFormat('EEE, d MMM yyyy · HH:mm').format(info.scheduledAt)}${info.repeatsWeekly ? ' · Repeats weekly' : ''}';
+                                    return Padding(
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 4.0,
                                       ),
                                       child: Text(
-                                        '#${p.id}: ${p.title ?? ''} — ${p.body ?? ''}',
+                                        '#${p.id}: ${p.title ?? ''} — ${p.body ?? ''}\n$scheduledText',
                                       ),
-                                    ),
-                                  )
+                                    );
+                                  })
                                   .toList(),
                             ),
                           ),

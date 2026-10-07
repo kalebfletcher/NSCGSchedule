@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:intl/intl.dart';
 import 'package:nscgschedule/models/timetable_models.dart' as models;
@@ -198,8 +198,10 @@ class _TimetableScreenState extends State<TimetableScreen> {
 
   TimeOfDay? _parseTimeString(String timeString) {
     try {
-      // Handle formats like "9:45AM" or "9:45 AM"
+      // The portal uses 24-hour times without a suffix (e.g. 12:00 is noon),
+      // but some imported schedules use 12-hour times with AM/PM.
       final cleanTime = timeString.trim().toUpperCase();
+      final hasAmPm = cleanTime.contains('AM') || cleanTime.contains('PM');
       final isPM = cleanTime.contains('PM');
 
       // Extract just the numbers
@@ -210,12 +212,16 @@ class _TimetableScreenState extends State<TimetableScreen> {
         var hour = int.parse(parts[0]);
         final minute = int.parse(parts[1]);
 
-        // Convert to 24-hour format if needed
-        if (isPM && hour < 12) {
-          hour += 12;
-        } else if (!isPM && hour == 12) {
-          hour = 0; // 12 AM is 0:00 in 24-hour format
+        if (hasAmPm) {
+          if (hour < 1 || hour > 12) return null;
+          if (isPM && hour < 12) {
+            hour += 12;
+          } else if (!isPM && hour == 12) {
+            hour = 0;
+          }
         }
+
+        if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
 
         return TimeOfDay(hour: hour, minute: minute);
       }
@@ -409,7 +415,6 @@ class _TimetableScreenState extends State<TimetableScreen> {
                 mediaPlaybackRequiresUserGesture: false,
                 mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
                 cacheEnabled: true,
-                clearCache: false,
                 useShouldOverrideUrlLoading: false,
               ),
               onReceivedServerTrustAuthRequest: (controller, challenge) async {
@@ -705,24 +710,31 @@ class _TimetableScreenState extends State<TimetableScreen> {
                           borderRadius: BorderRadius.circular(16),
                           side: BorderSide(
                             color: isHighlighted
-                                ? Theme.of(context).colorScheme.secondary.withValues(alpha: 0.8)
-                                : Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                                ? Theme.of(
+                                    context,
+                                  ).colorScheme.secondary.withValues(alpha: 0.8)
+                                : Theme.of(context).colorScheme.outlineVariant
+                                      .withValues(alpha: 0.5),
                             width: isHighlighted ? 2 : 1,
                           ),
                         ),
-                        margin: const EdgeInsets.only(bottom: 12, left: 8, right: 8),
+                        margin: const EdgeInsets.only(
+                          bottom: 12,
+                          left: 8,
+                          right: 8,
+                        ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(16),
                           child: Container(
                             decoration: BoxDecoration(
                               color: isHighlighted
-                                  ? Theme.of(context).colorScheme.secondaryContainer.withValues(alpha: 0.3)
+                                  ? Theme.of(context)
+                                        .colorScheme
+                                        .secondaryContainer
+                                        .withValues(alpha: 0.3)
                                   : null,
                               border: Border(
-                                left: BorderSide(
-                                  color: sideColor,
-                                  width: 4,
-                                ),
+                                left: BorderSide(color: sideColor, width: 4),
                               ),
                             ),
                             child: InkWell(
@@ -737,15 +749,21 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Expanded(
                                           child: Text(
                                             lesson.name,
-                                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium
+                                                ?.copyWith(
                                                   fontWeight: FontWeight.w700,
                                                   color: isHighlighted
-                                                      ? Theme.of(context).colorScheme.onSecondaryContainer
+                                                      ? Theme.of(context)
+                                                            .colorScheme
+                                                            .onSecondaryContainer
                                                       : null,
                                                 ),
                                           ),
@@ -758,14 +776,21 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                         Icon(
                                           Icons.schedule,
                                           size: 16,
-                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
                                         ),
                                         const SizedBox(width: 6),
                                         Expanded(
                                           child: Text(
                                             '${lesson.startTime} - ${lesson.endTime}${_nextLessonId == '${lesson.name}-${lesson.startTime}' ? _timeRemaining : ''}',
-                                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.copyWith(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
                                                 ),
                                           ),
                                         ),
@@ -773,26 +798,36 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                           Icon(
                                             Icons.room,
                                             size: 16,
-                                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
                                           ),
                                           const SizedBox(width: 6),
                                           Text(
                                             lesson.room,
-                                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.copyWith(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
                                                   fontWeight: FontWeight.w500,
                                                 ),
                                           ),
-                                        ]
+                                        ],
                                       ],
                                     ),
-                                    if (lesson.teachers.isNotEmpty || lesson.course.isNotEmpty || lesson.group.isNotEmpty) ...[
+                                    if (lesson.teachers.isNotEmpty ||
+                                        lesson.course.isNotEmpty ||
+                                        lesson.group.isNotEmpty) ...[
                                       const SizedBox(height: 8),
                                       SizedBox(
                                         width: double.infinity,
                                         child: Wrap(
                                           alignment: WrapAlignment.spaceBetween,
-                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
                                           spacing: 16,
                                           runSpacing: 8,
                                           children: [
@@ -801,44 +836,71 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                                 TextSpan(
                                                   children: [
                                                     WidgetSpan(
-                                                      alignment: PlaceholderAlignment.middle,
+                                                      alignment:
+                                                          PlaceholderAlignment
+                                                              .middle,
                                                       child: Padding(
-                                                        padding: const EdgeInsets.only(right: 6.0),
+                                                        padding:
+                                                            const EdgeInsets.only(
+                                                              right: 6.0,
+                                                            ),
                                                         child: Icon(
                                                           Icons.person,
                                                           size: 16,
-                                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                          color: Theme.of(context)
+                                                              .colorScheme
+                                                              .onSurfaceVariant,
                                                         ),
                                                       ),
                                                     ),
                                                     TextSpan(
-                                                      text: lesson.teachers.join(", "),
-                                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                      text: lesson.teachers
+                                                          .join(", "),
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .bodyMedium
+                                                          ?.copyWith(
+                                                            color: Theme.of(context)
+                                                                .colorScheme
+                                                                .onSurfaceVariant,
                                                           ),
                                                     ),
                                                   ],
                                                 ),
                                               ),
-                                            if (lesson.course.isNotEmpty || lesson.group.isNotEmpty)
+                                            if (lesson.course.isNotEmpty ||
+                                                lesson.group.isNotEmpty)
                                               Text.rich(
                                                 TextSpan(
                                                   children: [
                                                     WidgetSpan(
-                                                      alignment: PlaceholderAlignment.middle,
+                                                      alignment:
+                                                          PlaceholderAlignment
+                                                              .middle,
                                                       child: Padding(
-                                                        padding: const EdgeInsets.only(right: 6.0),
+                                                        padding:
+                                                            const EdgeInsets.only(
+                                                              right: 6.0,
+                                                            ),
                                                         child: Icon(
                                                           Icons.class_,
                                                           size: 16,
-                                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                          color: Theme.of(context)
+                                                              .colorScheme
+                                                              .onSurfaceVariant,
                                                         ),
                                                       ),
                                                     ),
                                                     TextSpan(
-                                                      text: '${lesson.course} (${lesson.group})',
-                                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                      text:
+                                                          '${lesson.course} (${lesson.group})',
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .bodyMedium
+                                                          ?.copyWith(
+                                                            color: Theme.of(context)
+                                                                .colorScheme
+                                                                .onSurfaceVariant,
                                                           ),
                                                     ),
                                                   ],
